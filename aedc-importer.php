@@ -46,6 +46,7 @@ require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-admin.php'
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-uploader.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-table.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-mapping.php';
+require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-processor.php';
 
 /**
  * Initialize AJAX handlers
@@ -54,6 +55,7 @@ function aedc_importer_init_ajax() {
     $uploader = new AEDC_Importer_Uploader();
     $table = new AEDC_Importer_Table();
     $mapping = new AEDC_Importer_Mapping();
+    $processor = new AEDC_Importer_Processor();
     
     // Register AJAX actions
     add_action('wp_ajax_aedc_upload_file', array($uploader, 'handle_upload'));
@@ -68,6 +70,9 @@ function aedc_importer_init_ajax() {
     add_action('wp_ajax_aedc_get_mapping_templates', array($mapping, 'get_templates'));
     add_action('wp_ajax_aedc_delete_mapping_template', array($mapping, 'delete_template'));
     add_action('wp_ajax_aedc_auto_suggest_mapping', array($mapping, 'auto_suggest_mapping'));
+    add_action('wp_ajax_aedc_process_import_batch', array($processor, 'process_batch'));
+    add_action('wp_ajax_aedc_save_import_options', array($mapping, 'save_import_options'));
+    add_action('wp_ajax_aedc_cancel_import', array($processor, 'cancel_import'));
 }
 add_action('init', 'aedc_importer_init_ajax');
 
@@ -77,10 +82,32 @@ add_action('init', 'aedc_importer_init_ajax');
 function aedc_importer_admin_scripts($hook) {
     if (strpos($hook, 'aedc-importer') !== false) {
         wp_enqueue_script('jquery');
-        wp_localize_script('jquery', 'aedcImporter', array(
+        
+        // Add the importer admin script
+        wp_register_script(
+            'aedc-importer-admin',
+            AEDC_IMPORTER_PLUGIN_URL . 'assets/js/aedc-importer-admin.js',
+            array('jquery'),
+            AEDC_IMPORTER_VERSION,
+            true
+        );
+
+        // Add inline script before the main script
+        wp_add_inline_script('aedc-importer-admin', 'var ajaxurl = "' . admin_url('admin-ajax.php') . '";', 'before');
+        
+        // Localize the script
+        wp_localize_script('aedc-importer-admin', 'aedcImporter', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('aedc_importer_nonce')
+            'nonce' => wp_create_nonce('aedc_importer_nonce'),
+            'strings' => array(
+                'import_error' => __('Import failed. Please try again.', 'aedc-importer'),
+                'network_error' => __('Network error occurred. Please try again.', 'aedc-importer'),
+                'confirm_cancel' => __('Are you sure you want to cancel the import?', 'aedc-importer')
+            )
         ));
+
+        // Enqueue the script
+        wp_enqueue_script('aedc-importer-admin');
     }
 }
 add_action('admin_enqueue_scripts', 'aedc_importer_admin_scripts');

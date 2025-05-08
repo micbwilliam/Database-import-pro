@@ -141,13 +141,45 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                 <?php wp_nonce_field('aedc_importer_nonce', 'aedc_nonce'); ?>
                 
                 <div class="import-options">
+                    <h4><?php esc_html_e('Import Mode', 'aedc-importer'); ?></h4>
+                    <div class="import-mode-options">
+                        <label>
+                            <input type="radio" name="import_mode" value="insert" checked />
+                            <?php esc_html_e('Insert Only (Skip existing records)', 'aedc-importer'); ?>
+                        </label>
+                        <label>
+                            <input type="radio" name="import_mode" value="update" />
+                            <?php esc_html_e('Update Only (Update existing records)', 'aedc-importer'); ?>
+                        </label>
+                        <label>
+                            <input type="radio" name="import_mode" value="upsert" />
+                            <?php esc_html_e('Insert & Update (Create new or update existing)', 'aedc-importer'); ?>
+                        </label>
+                    </div>
+
+                    <div id="key-columns-selection" style="display: none; margin-top: 15px;">
+                        <h4><?php esc_html_e('Key Columns', 'aedc-importer'); ?></h4>
+                        <p class="description"><?php esc_html_e('Select columns to identify existing records', 'aedc-importer'); ?></p>
+                        <?php
+                        foreach ($columns as $column) :
+                            $is_key = $column->Key === 'PRI' || $column->Key === 'UNI';
+                        ?>
+                            <label>
+                                <input type="checkbox" name="key_columns[]" value="<?php echo esc_attr($column->Field); ?>"
+                                    <?php echo $is_key ? 'checked' : ''; ?> />
+                                <?php echo esc_html($column->Field); ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <h4><?php esc_html_e('Import Options', 'aedc-importer'); ?></h4>
                     <label>
-                        <input type="checkbox" name="skip_duplicates" checked />
-                        <?php esc_html_e('Skip duplicate records', 'aedc-importer'); ?>
+                        <input type="checkbox" name="allow_null" checked />
+                        <?php esc_html_e('Allow NULL values for nullable fields', 'aedc-importer'); ?>
                     </label>
                     <label>
                         <input type="checkbox" name="dry_run" />
-                        <?php esc_html_e('Perform dry run (no actual import)', 'aedc-importer'); ?>
+                        <?php esc_html_e('Dry run (validate without importing)', 'aedc-importer'); ?>
                     </label>
                 </div>
 
@@ -224,19 +256,64 @@ jQuery(document).ready(function($) {
             return;
         }
 
+        // Get all form data
         const formData = $(this).serialize();
-        
+
+        // First validate data
         $.post(ajaxurl, {
-            action: 'aedc_start_import',
-            data: formData,
+            action: 'aedc_validate_import_data',
             nonce: $('#aedc_nonce').val()
-        }, function(response) {
-            if (response.success) {
-                window.location.href = window.location.href.replace(/step=\d/, 'step=5');
-            } else {
-                alert(response.data || '<?php esc_html_e('Failed to start import. Please try again.', 'aedc-importer'); ?>');
+        }, function(validateResponse) {
+            if (!validateResponse.success) {
+                alert('<?php esc_html_e('Data validation failed. Please fix the errors and try again.', 'aedc-importer'); ?>');
+                return;
             }
+
+            // Then save import options
+            $.post(ajaxurl, {
+                action: 'aedc_save_import_options',
+                data: formData,
+                nonce: $('#aedc_nonce').val()
+            }, function(response) {
+                if (response.success) {
+                    window.location.href = window.location.href.replace(/step=\d/, 'step=5');
+                } else {
+                    alert(response.data || '<?php esc_html_e('Failed to save import options. Please try again.', 'aedc-importer'); ?>');
+                }
+            });
         });
+    });
+
+    // Handle import mode selection
+    $('input[name="import_mode"]').on('change', function() {
+        const mode = $(this).val();
+        if (mode === 'update' || mode === 'upsert') {
+            $('#key-columns-selection').slideDown();
+            
+            // Require at least one key column
+            if (!$('input[name="key_columns[]"]:checked').length) {
+                const primaryKey = $('input[name="key_columns[]"]').filter(function() {
+                    return $(this).closest('label').text().trim().includes('(Primary)');
+                }).first();
+                
+                if (primaryKey.length) {
+                    primaryKey.prop('checked', true);
+                } else {
+                    $('input[name="key_columns[]"]:first').prop('checked', true);
+                }
+            }
+        } else {
+            $('#key-columns-selection').slideUp();
+        }
+    });
+
+    // Ensure at least one key column is selected when needed
+    $('input[name="key_columns[]"]').on('change', function() {
+        const mode = $('input[name="import_mode"]:checked').val();
+        if ((mode === 'update' || mode === 'upsert') && !$('input[name="key_columns[]"]:checked').length) {
+            $(this).prop('checked', true);
+            alert('<?php esc_html_e('At least one key column must be selected for Update or Insert & Update mode.', 'aedc-importer'); ?>');
+        }
     });
 });
 
@@ -371,5 +448,33 @@ tr.invalid {
 
 tr.required:not(.valid) {
     background-color: #fff8f5;
+}
+
+.import-mode-options {
+    margin: 10px 0 20px;
+}
+
+.import-mode-options label,
+#key-columns-selection label {
+    display: block;
+    margin: 8px 0;
+}
+
+.import-options h4 {
+    margin: 20px 0 10px;
+    color: #23282d;
+}
+
+.import-options .description {
+    color: #666;
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+#key-columns-selection {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
 }
 </style>

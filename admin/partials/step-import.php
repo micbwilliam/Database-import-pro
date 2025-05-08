@@ -11,7 +11,23 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Debug session data
+error_log('AEDC Importer Debug - Session data at import start: ' . print_r($_SESSION['aedc_importer'], true));
+
 $total_records = isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : 0;
+$import_mode = isset($_SESSION['aedc_importer']['import_mode']) ? $_SESSION['aedc_importer']['import_mode'] : 'insert';
+
+// Verify required session data
+if (!isset($_SESSION['aedc_importer']['file']) || 
+    !isset($_SESSION['aedc_importer']['mapping']) || 
+    !isset($_SESSION['aedc_importer']['target_table'])) {
+    wp_die(__('Missing required import data. Please go back and complete all previous steps.', 'aedc-importer'));
+}
+
+// Verify file exists
+if (!file_exists($_SESSION['aedc_importer']['file']['path'])) {
+    wp_die(__('Import file not found. Please restart the import process.', 'aedc-importer'));
+}
 ?>
 
 <div class="aedc-step-content step-import">
@@ -32,17 +48,32 @@ $total_records = isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION[
                     <span class="stat-total">/ <?php echo esc_html($total_records); ?></span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label"><?php esc_html_e('Success:', 'aedc-importer'); ?></span>
-                    <span class="stat-value success" id="success-count">0</span>
+                    <span class="stat-label"><?php esc_html_e('Inserted:', 'aedc-importer'); ?></span>
+                    <span class="stat-value success" id="inserted-count">0</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label"><?php esc_html_e('Failed:', 'aedc-importer'); ?></span>
-                    <span class="stat-value error" id="error-count">0</span>
+                    <span class="stat-label"><?php esc_html_e('Updated:', 'aedc-importer'); ?></span>
+                    <span class="stat-value info" id="updated-count">0</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label"><?php esc_html_e('Skipped:', 'aedc-importer'); ?></span>
                     <span class="stat-value warning" id="skipped-count">0</span>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-label"><?php esc_html_e('Failed:', 'aedc-importer'); ?></span>
+                    <span class="stat-value error" id="failed-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="import-details">
+            <div class="detail-item">
+                <span class="detail-label"><?php esc_html_e('Import Mode:', 'aedc-importer'); ?></span>
+                <span class="detail-value"><?php echo esc_html(ucfirst($import_mode)); ?></span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label"><?php esc_html_e('Batch Size:', 'aedc-importer'); ?></span>
+                <span class="detail-value">100</span>
             </div>
         </div>
 
@@ -69,24 +100,95 @@ $total_records = isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION[
     </div>
 </div>
 
+<?php
+// Initialize variables for JavaScript
+$ajaxurl = admin_url('admin-ajax.php');
+$nonce = wp_create_nonce('aedc_importer_nonce');
+?>
+
 <script>
 jQuery(document).ready(function($) {
+    // Initialize import process
     let importPaused = false;
     let importCancelled = false;
     let currentBatch = 0;
     const batchSize = 100;
     const totalRecords = <?php echo esc_js($total_records); ?>;
+    let totalStats = {
+        processed: 0,
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0
+    };
 
-    function updateProgress(processed, success, errors, skipped) {
-        const percentage = Math.round((processed / totalRecords) * 100);
+    console.log('AEDC Importer: Starting import process');
+    console.log('Total records:', totalRecords);
+
+    function processBatch() {
+        if (importPaused || importCancelled) {
+            return;
+        }
+
+        console.log('AEDC Importer: Processing batch', currentBatch);
+
+        $.ajax({
+            url: '<?php echo $ajaxurl; ?>',
+            type: 'POST',
+            data: {
+                action: 'aedc_process_import_batch',
+                batch: currentBatch,
+                nonce: '<?php echo $nonce; ?>'
+            },
+            success: function(response) {
+                console.log('AEDC Importer: Batch response', response);
+                
+                if (response.success) {
+                    updateProgress(response.data);
+
+                    if (response.data.messages) {
+                        response.data.messages.forEach(function(msg) {
+                            addLogEntry(msg.message, msg.type);
+                        });
+                    }
+
+                    if (response.data.completed) {
+                        importCompleted();
+                    } else {
+                        currentBatch++;
+                        setTimeout(processBatch, 100); // Add small delay between batches
+                    }
+                } else {
+                    console.error('AEDC Importer: Batch failed', response);
+                    addLogEntry(response.data || 'Import failed. Please try again.', 'error');
+                    importFailed();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AEDC Importer: AJAX error', {xhr, status, error});
+                addLogEntry('Network error occurred. Please try again.', 'error');
+                importFailed();
+            }
+        });
+    }
+
+    function updateProgress(stats) {
+        const percentage = Math.round((stats.processed / totalRecords) * 100);
         
         $('.progress-bar-fill').css('width', percentage + '%');
         $('.progress-text').text(percentage + '%');
         
-        $('#processed-count').text(processed);
-        $('#success-count').text(success);
-        $('#error-count').text(errors);
-        $('#skipped-count').text(skipped);
+        totalStats.processed += stats.processed;
+        totalStats.inserted += stats.inserted;
+        totalStats.updated += stats.updated;
+        totalStats.skipped += stats.skipped;
+        totalStats.failed += stats.failed;
+        
+        $('#processed-count').text(totalStats.processed);
+        $('#inserted-count').text(totalStats.inserted);
+        $('#updated-count').text(totalStats.updated);
+        $('#skipped-count').text(totalStats.skipped);
+        $('#failed-count').text(totalStats.failed);
     }
 
     function addLogEntry(message, type = 'info') {
@@ -95,51 +197,11 @@ jQuery(document).ready(function($) {
         $('#import-log').prepend(entry);
     }
 
-    function processBatch() {
-        if (importPaused || importCancelled) {
-            return;
-        }
-
-        $.post(ajaxurl, {
-            action: 'aedc_process_import_batch',
-            batch: currentBatch,
-            batch_size: batchSize,
-            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>'
-        }, function(response) {
-            if (response.success) {
-                updateProgress(
-                    response.data.processed,
-                    response.data.success,
-                    response.data.errors,
-                    response.data.skipped
-                );
-
-                if (response.data.messages) {
-                    response.data.messages.forEach(function(msg) {
-                        addLogEntry(msg.message, msg.type);
-                    });
-                }
-
-                if (response.data.completed) {
-                    importCompleted();
-                } else {
-                    currentBatch++;
-                    processBatch();
-                }
-            } else {
-                addLogEntry(response.data, 'error');
-                importFailed();
-            }
-        }).fail(function() {
-            addLogEntry('<?php esc_html_e('Network error occurred. Please try again.', 'aedc-importer'); ?>', 'error');
-            importFailed();
-        });
-    }
-
     function importCompleted() {
         addLogEntry('<?php esc_html_e('Import completed successfully!', 'aedc-importer'); ?>', 'success');
         $('.import-actions').html(
-            '<a href="<?php echo esc_url(add_query_arg('step', '6')); ?>" class="button button-primary"><?php esc_html_e('View Results', 'aedc-importer'); ?></a>'
+            '<a href="<?php echo esc_url(add_query_arg('step', '6')); ?>" class="button button-primary">' +
+            '<?php esc_html_e('View Results', 'aedc-importer'); ?></a>'
         );
     }
 
@@ -183,36 +245,132 @@ jQuery(document).ready(function($) {
     });
 });
 </script>
-<?php
-// ...existing code...
 
-$import_sql = "INSERT INTO `{$table}` (";
-$columns = array();
-$values = array();
-$placeholders = array();
-
-foreach ($mapping as $column => $map) {
-    // Skip auto-increment fields and fields marked to keep current data
-    if (!empty($map['skip']) || (isset($map['csv_field']) && $map['csv_field'] === '__keep_current__')) {
-        continue;
-    }
-    
-    $columns[] = $column;
-    if (!empty($map['csv_field']) && isset($row_data[$map['csv_field']])) {
-        $value = $row_data[$map['csv_field']];
-        if (!empty($map['transform'])) {
-            $value = apply_transformation($value, $map['transform'], $map['custom_transform'] ?? '');
-        }
-        $values[] = $value;
-    } elseif (!empty($map['default_value'])) {
-        $values[] = $map['default_value'];
-    } elseif (!empty($map['allow_null'])) {
-        $values[] = null;
-    } else {
-        $values[] = '';
-    }
-    $placeholders[] = '%s';
+<style>
+.import-progress {
+    margin-bottom: 30px;
 }
 
-$import_sql .= implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
-// ...existing code...
+.progress-bar {
+    height: 20px;
+    background: #f1f1f1;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #2271b1;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+
+.progress-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-item {
+    background: #fff;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
+}
+
+.stat-label {
+    display: block;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.stat-value.success { color: #46b450; }
+.stat-value.info { color: #2271b1; }
+.stat-value.warning { color: #ffb900; }
+.stat-value.error { color: #dc3232; }
+
+.stat-total {
+    color: #666;
+    font-size: 14px;
+}
+
+.import-details {
+    background: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
+    margin-bottom: 30px;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.detail-item:last-child {
+    margin-bottom: 0;
+}
+
+.detail-label {
+    color: #666;
+}
+
+.import-log {
+    background: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    border: 1px solid #e5e5e5;
+    margin-bottom: 30px;
+}
+
+.log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.log-entry {
+    padding: 8px;
+    border-bottom: 1px solid #f0f0f0;
+    font-family: monospace;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry.info { color: #2271b1; }
+.log-entry.success { color: #46b450; }
+.log-entry.warning { color: #ffb900; }
+.log-entry.error { color: #dc3232; }
+
+.import-actions {
+    text-align: right;
+}
+
+.import-actions .button {
+    margin-left: 10px;
+}
+</style>

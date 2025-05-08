@@ -281,17 +281,47 @@ class AEDC_Importer_Uploader {
             return new WP_Error('file_error', __('Could not open file', 'aedc-importer'));
         }
 
-        // Detect encoding and convert to UTF-8 if necessary
-        $content = fgets($handle);
-        $encoding = mb_detect_encoding($content, array('UTF-8', 'ISO-8859-1', 'ASCII'));
-        if ($encoding !== 'UTF-8') {
-            $content = mb_convert_encoding($content, 'UTF-8', $encoding);
+        // Try to detect the delimiter
+        $first_line = fgets($handle);
+        rewind($handle);
+        
+        // Detect common delimiters
+        $delimiters = array(',', ';', '\t', '|');
+        $delimiter = ','; // default
+        $max_count = 0;
+        
+        foreach ($delimiters as $d) {
+            $count = count(str_getcsv($first_line, $d));
+            if ($count > $max_count) {
+                $max_count = $count;
+                $delimiter = $d;
+            }
         }
 
-        // Parse CSV line
-        $headers = str_getcsv($content);
-        $headers = array_map('trim', $headers);
-        $headers = array_map('sanitize_text_field', $headers);
+        // Detect encoding and convert to UTF-8 if necessary
+        $encoding = mb_detect_encoding($first_line, array('UTF-8', 'ISO-8859-1', 'ASCII', 'Windows-1252'));
+        if ($encoding && $encoding !== 'UTF-8') {
+            $first_line = mb_convert_encoding($first_line, 'UTF-8', $encoding);
+        }
+
+        // Parse headers with detected delimiter
+        $headers = str_getcsv($first_line, $delimiter);
+        
+        // Clean up headers
+        $headers = array_map(function($header) {
+            // Remove BOM if present
+            $header = str_replace("\xEF\xBB\xBF", '', $header);
+            // Trim whitespace and quotes
+            $header = trim($header, " \t\n\r\0\x0B\"'");
+            // Sanitize
+            return sanitize_text_field($header);
+        }, $headers);
+
+        // Store total number of columns for validation
+        $_SESSION['aedc_importer']['total_columns'] = count($headers);
+        
+        error_log('AEDC Importer: Detected ' . count($headers) . ' columns with delimiter "' . $delimiter . '"');
+        error_log('AEDC Importer: Headers: ' . print_r($headers, true));
 
         fclose($handle);
         return $headers;

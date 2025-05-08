@@ -23,6 +23,7 @@ class AEDC_Importer_Mapping {
         add_action('wp_ajax_aedc_auto_suggest_mapping', array($this, 'auto_suggest_mapping'));
         add_action('wp_ajax_aedc_save_field_mapping', array($this, 'save_field_mapping'));
         add_action('wp_ajax_aedc_validate_import_data', array($this, 'validate_import_data')); // Add this line
+        add_action('wp_ajax_aedc_save_import_options', array($this, 'save_import_options'));
     }
 
     /**
@@ -713,5 +714,25 @@ class AEDC_Importer_Mapping {
         }
 
         return $value;
+    }
+
+    /**
+     * Save import options before starting import
+     */
+    public function save_import_options() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+        }
+
+        parse_str($_POST['data'], $form_data);
+        
+        $_SESSION['aedc_importer']['import_mode'] = sanitize_text_field($form_data['import_mode']);
+        $_SESSION['aedc_importer']['key_columns'] = isset($form_data['key_columns']) ? array_map('sanitize_text_field', $form_data['key_columns']) : [];
+        $_SESSION['aedc_importer']['allow_null'] = !empty($form_data['allow_null']);
+        $_SESSION['aedc_importer']['dry_run'] = !empty($form_data['dry_run']);
+
+        wp_send_json_success();
     }
 }
