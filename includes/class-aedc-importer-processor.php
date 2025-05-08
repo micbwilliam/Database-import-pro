@@ -420,43 +420,56 @@ class AEDC_Importer_Processor {
     private function save_import_log($stats, $error_log = '') {
         global $wpdb;
         
+        error_log('AEDC Importer Debug: Starting save_import_log');
+        error_log('AEDC Importer Debug: Stats - ' . print_r($stats, true));
+        
         // Calculate the total duration from the start time
         $start_time = isset($_SESSION['aedc_importer']['start_time']) ? strtotime($_SESSION['aedc_importer']['start_time']) : 0;
         $duration = $start_time > 0 ? (time() - $start_time) : 0;
         
-        // Calculate success rate using the same logic as completion page
-        $successful_records = $stats['inserted'] + $stats['updated'];
-        $attempted_records = $stats['processed'] - $stats['skipped'];
-        $success_rate = ($attempted_records > 0) ? round(($successful_records / $attempted_records) * 100, 1) : 100;
+        // Get total records from session
+        $total_records = isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : $stats['processed'];
         
         $import_data = array(
             'user_id' => get_current_user_id(),
             'import_date' => current_time('mysql'),
-            'file_name' => isset($_SESSION['aedc_importer']['file']['name']) ? basename($_SESSION['aedc_importer']['file']['name']) : '',
-            'table_name' => isset($_SESSION['aedc_importer']['target_table']) ? $_SESSION['aedc_importer']['target_table'] : '',
-            'total_rows' => isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : $stats['processed'],
+            'file_name' => basename($_SESSION['aedc_importer']['file']['name']),
+            'table_name' => $_SESSION['aedc_importer']['target_table'],
+            'total_rows' => $total_records,
             'inserted' => isset($stats['inserted']) ? $stats['inserted'] : 0,
             'updated' => isset($stats['updated']) ? $stats['updated'] : 0,
             'skipped' => isset($stats['skipped']) ? $stats['skipped'] : 0,
             'failed' => isset($stats['failed']) ? $stats['failed'] : 0,
             'error_log' => $error_log,
             'status' => ($stats['failed'] > 0) ? 'completed_with_errors' : 'completed',
-            'duration' => $duration,
-            'success_rate' => $success_rate
+            'duration' => $duration
         );
 
+        error_log('AEDC Importer Debug: Import data - ' . print_r($import_data, true));
+        error_log('AEDC Importer Debug: Table name - ' . $wpdb->prefix . 'aedc_import_logs');
+
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}aedc_import_logs'");
+        if (!$table_exists) {
+            error_log('AEDC Importer Debug: Table does not exist, creating now...');
+            $this->create_logs_table();
+        }
+        
+        $result = $wpdb->insert($wpdb->prefix . 'aedc_import_logs', $import_data);
+        
+        if ($result === false) {
+            error_log('AEDC Importer Error: Failed to save import log - ' . $wpdb->last_error);
+            return false;
+        }
+
+        error_log('AEDC Importer Debug: Log saved successfully with ID: ' . $wpdb->insert_id);
+        
         // Update session with final stats for completion page
         $_SESSION['aedc_importer']['import_stats'] = array_merge($stats, array('duration' => $duration));
         
         // If there are errors, store them in session for the completion page
         if (!empty($error_log)) {
             $_SESSION['aedc_importer']['error_log'] = json_decode($error_log, true);
-        }
-        
-        $result = $wpdb->insert($wpdb->prefix . 'aedc_import_logs', $import_data);
-        
-        if ($result === false) {
-            error_log('AEDC Importer: Failed to save import log - ' . $wpdb->last_error);
         }
         
         return $wpdb->insert_id;
@@ -541,5 +554,38 @@ class AEDC_Importer_Processor {
         check_ajax_referer('aedc_importer_nonce', 'nonce');
         $_SESSION['aedc_importer']['start_time'] = current_time('mysql');
         wp_send_json_success();
+    }
+
+    /**
+     * Create the import logs table
+     */
+    private function create_logs_table() {
+        global $wpdb;
+        
+        error_log('AEDC Importer Debug: Creating logs table');
+        
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}aedc_import_logs (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL,
+            import_date datetime NOT NULL,
+            file_name varchar(255) NOT NULL,
+            table_name varchar(255) NOT NULL,
+            total_rows int NOT NULL,
+            inserted int NOT NULL,
+            updated int NOT NULL,
+            skipped int NOT NULL,
+            failed int NOT NULL,
+            error_log longtext,
+            status varchar(50) NOT NULL,
+            duration int NOT NULL,
+            PRIMARY KEY  (id)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+        
+        error_log('AEDC Importer Debug: Logs table creation complete');
     }
 }
