@@ -19,17 +19,26 @@ define('AEDC_IMPORTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 // Start session if not already started
 function aedc_importer_start_session() {
-    if (!session_id()) {
+    if (!session_id() && !headers_sent()) {
         session_start();
+    }
+    
+    // Initialize session array if not exists
+    if (!isset($_SESSION['aedc_importer'])) {
+        $_SESSION['aedc_importer'] = array();
     }
 }
 add_action('init', 'aedc_importer_start_session');
+add_action('admin_init', 'aedc_importer_start_session');
+add_action('wp_ajax_nopriv_aedc_upload_file', 'aedc_importer_start_session');
+add_action('wp_ajax_aedc_upload_file', 'aedc_importer_start_session');
 
 // Include required files
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-admin.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-uploader.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-table.php';
+require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-mapping.php';
 
 /**
  * Initialize AJAX handlers
@@ -37,6 +46,7 @@ require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-table.php'
 function aedc_importer_init_ajax() {
     $uploader = new AEDC_Importer_Uploader();
     $table = new AEDC_Importer_Table();
+    $mapping = new AEDC_Importer_Mapping();
     
     // Register AJAX actions
     add_action('wp_ajax_aedc_upload_file', array($uploader, 'handle_upload'));

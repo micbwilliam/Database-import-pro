@@ -219,8 +219,19 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 console.log('Upload response:', response); // Debug log
                 if (response.success) {
-                    showColumnPreview(response.data.headers);
-                    submitButton.prop('disabled', false).text('Upload and Continue');
+                    if (response.data && response.data.headers) {
+                        showColumnPreview(response.data.headers);
+                        // Store headers in session via another AJAX call
+                        $.post(ajaxurl, {
+                            action: 'aedc_store_headers',
+                            nonce: aedcImporter.nonce,
+                            headers: JSON.stringify(response.data.headers)
+                        });
+                        submitButton.prop('disabled', false).text('Upload and Continue');
+                    } else {
+                        showError('No headers found in the uploaded file');
+                        removeFile();
+                    }
                 } else {
                     const errorMessage = response.data || 'Upload failed. Please try again.';
                     showError(errorMessage);

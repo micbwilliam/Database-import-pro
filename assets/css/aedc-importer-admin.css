@@ -836,7 +836,90 @@
     margin-left: 10px;
 }
 
-/* Responsive Design */
+/* Template Management */
+.template-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.template-select {
+    min-width: 200px;
+}
+
+#template-name {
+    min-width: 200px;
+    height: 30px;
+}
+
+/* Enhanced Field Mapping */
+.mapping-table td {
+    vertical-align: top;
+    padding: 15px 12px;
+}
+
+.column-nullable {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-left: 5px;
+}
+
+.allow-null {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #666;
+}
+
+.allow-null input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+.mapping-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.transform-select {
+    margin-bottom: 8px;
+}
+
+.custom-transform textarea {
+    border: 1px solid #ddd;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+.custom-transform textarea:focus {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+    outline: none;
+}
+
+/* Validation Styles */
+.mapping-error {
+    border-color: #dc3232 !important;
+}
+
+.mapping-error-message {
+    color: #dc3232;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Responsive Styles */
 @media screen and (max-width: 782px) {
     .aedc-wizard-steps {
         flex-direction: column;
@@ -967,5 +1050,31 @@
     .upload-actions .button {
         width: 100%;
         margin-bottom: 10px;
+    }
+
+    .template-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .template-controls > * {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .mapping-table td {
+        display: block;
+        width: 100%;
+        padding: 10px;
+    }
+
+    .mapping-table td:not(:last-child) {
+        border-bottom: none;
+    }
+
+    .csv-field-select,
+    .transform-select,
+    .default-value {
+        max-width: 100%;
     }
 } 

@@ -72,6 +72,7 @@ class AEDC_Importer_Uploader {
         // Add AJAX handlers
         add_action('wp_ajax_aedc_upload_file', array($this, 'handle_upload'));
         add_action('wp_ajax_aedc_get_headers', array($this, 'get_file_headers'));
+        add_action('wp_ajax_aedc_store_headers', array($this, 'store_headers'));
     }
 
     /**
@@ -319,6 +320,30 @@ class AEDC_Importer_Uploader {
         } catch (Exception $e) {
             return new WP_Error('excel_error', $e->getMessage());
         }
+    }
+
+    /**
+     * Store CSV headers in session
+     */
+    public function store_headers() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+        }
+
+        $headers = isset($_POST['headers']) ? json_decode(stripslashes($_POST['headers']), true) : array();
+        
+        if (empty($headers)) {
+            wp_send_json_error(__('No headers provided', 'aedc-importer'));
+        }
+
+        // Store headers in session
+        $_SESSION['aedc_importer']['headers'] = $headers;
+        
+        error_log('AEDC Importer Debug: Stored headers in session: ' . print_r($headers, true));
+        
+        wp_send_json_success();
     }
 
     /**
