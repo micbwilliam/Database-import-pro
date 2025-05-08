@@ -312,7 +312,6 @@ class AEDC_Importer_Mapping {
      * Generate preview data using mapping
      */
     private function generate_preview_data($mapping) {
-        // Get file path from session
         $file_info = isset($_SESSION['aedc_importer']['file']) ? $_SESSION['aedc_importer']['file'] : null;
         if (!$file_info || !file_exists($file_info['path'])) {
             return array();
@@ -321,36 +320,41 @@ class AEDC_Importer_Mapping {
         $preview_data = array();
         $csv_data = array();
 
-        // Read CSV file
         if ($file_info['type'] === 'csv') {
             $handle = fopen($file_info['path'], 'r');
             if ($handle !== false) {
-                // Read headers
                 $headers = fgetcsv($handle);
                 $headers = array_map('trim', $headers);
 
-                // Read first 10 rows for preview
                 $row_count = 0;
                 while (($row = fgetcsv($handle)) !== false && $row_count < 10) {
                     $row_data = array_combine($headers, $row);
                     $mapped_row = array();
                     
                     foreach ($mapping as $column => $map) {
+                        // Skip auto-increment fields
+                        if (!empty($map['skip'])) {
+                            continue;
+                        }
+                        
+                        // Skip fields marked to keep current data
+                        if (isset($map['csv_field']) && $map['csv_field'] === '__keep_current__') {
+                            $mapped_row[$column] = '[CURRENT DATA]'; // Placeholder for preview
+                            continue;
+                        }
+
                         $value = '';
                         
-                        // Get value from CSV or default
                         if (!empty($map['csv_field']) && isset($row_data[$map['csv_field']])) {
                             $value = $row_data[$map['csv_field']];
                         } elseif (!empty($map['default_value'])) {
                             $value = $map['default_value'];
                         }
 
-                        // Apply transformations
                         if (!empty($map['transform'])) {
                             $value = $this->apply_transformation($value, $map['transform'], $map['custom_transform'] ?? '');
                         }
 
-                        // Handle null values
                         if (empty($value) && !empty($map['allow_null'])) {
                             $value = null;
                         }
@@ -371,15 +375,24 @@ class AEDC_Importer_Mapping {
                     $worksheet = $spreadsheet->getActiveSheet();
                     $rows = $worksheet->toArray();
                     
-                    // Get headers from first row
                     $headers = array_map('trim', $rows[0]);
                     
-                    // Process next 10 rows for preview
                     for ($i = 1; $i <= min(10, count($rows) - 1); $i++) {
                         $row_data = array_combine($headers, $rows[$i]);
                         $mapped_row = array();
                         
                         foreach ($mapping as $column => $map) {
+                            // Skip auto-increment fields
+                            if (!empty($map['skip'])) {
+                                continue;
+                            }
+                            
+                            // Skip fields marked to keep current data
+                            if (isset($map['csv_field']) && $map['csv_field'] === '__keep_current__') {
+                                $mapped_row[$column] = '[CURRENT DATA]'; // Placeholder for preview
+                                continue;
+                            }
+
                             $value = '';
                             
                             if (!empty($map['csv_field']) && isset($row_data[$map['csv_field']])) {

@@ -182,4 +182,37 @@ jQuery(document).ready(function($) {
         }
     });
 });
-</script> 
+</script>
+<?php
+// ...existing code...
+
+$import_sql = "INSERT INTO `{$table}` (";
+$columns = array();
+$values = array();
+$placeholders = array();
+
+foreach ($mapping as $column => $map) {
+    // Skip auto-increment fields and fields marked to keep current data
+    if (!empty($map['skip']) || (isset($map['csv_field']) && $map['csv_field'] === '__keep_current__')) {
+        continue;
+    }
+    
+    $columns[] = $column;
+    if (!empty($map['csv_field']) && isset($row_data[$map['csv_field']])) {
+        $value = $row_data[$map['csv_field']];
+        if (!empty($map['transform'])) {
+            $value = apply_transformation($value, $map['transform'], $map['custom_transform'] ?? '');
+        }
+        $values[] = $value;
+    } elseif (!empty($map['default_value'])) {
+        $values[] = $map['default_value'];
+    } elseif (!empty($map['allow_null'])) {
+        $values[] = null;
+    } else {
+        $values[] = '';
+    }
+    $placeholders[] = '%s';
+}
+
+$import_sql .= implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+// ...existing code...

@@ -51,43 +51,58 @@ if (empty($csv_headers)) {
                                     <?php if ($column->Null === 'YES') : ?>
                                         <span class="column-nullable">(<?php esc_html_e('nullable', 'aedc-importer'); ?>)</span>
                                     <?php endif; ?>
-                                </td>
-                                <td>
-                                    <select name="mapping[<?php echo esc_attr($column->Field); ?>][csv_field]" class="csv-field-select">
-                                        <option value=""><?php esc_html_e('-- Select CSV Field --', 'aedc-importer'); ?></option>
-                                        <?php foreach ($csv_headers as $header) : ?>
-                                            <option value="<?php echo esc_attr($header); ?>"><?php echo esc_html($header); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <?php if ($column->Null === 'YES') : ?>
-                                        <label class="allow-null">
-                                            <input type="checkbox" 
-                                                   name="mapping[<?php echo esc_attr($column->Field); ?>][allow_null]" 
-                                                   value="1" />
-                                            <?php esc_html_e('Allow NULL', 'aedc-importer'); ?>
-                                        </label>
+                                    <?php if (strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                        <span class="column-auto-increment">(<?php esc_html_e('auto-increment', 'aedc-importer'); ?>)</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <input type="text" 
-                                           name="mapping[<?php echo esc_attr($column->Field); ?>][default]" 
-                                           class="default-value" 
-                                           placeholder="<?php esc_attr_e('Leave empty for no default', 'aedc-importer'); ?>" />
+                                    <?php if (strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                        <div class="auto-increment-notice">
+                                            <?php esc_html_e('Auto-increment field - no mapping needed', 'aedc-importer'); ?>
+                                            <input type="hidden" name="mapping[<?php echo esc_attr($column->Field); ?>][skip]" value="1" />
+                                        </div>
+                                    <?php else : ?>
+                                        <select name="mapping[<?php echo esc_attr($column->Field); ?>][csv_field]" class="csv-field-select">
+                                            <option value=""><?php esc_html_e('-- Select CSV Field --', 'aedc-importer'); ?></option>
+                                            <option value="__keep_current__"><?php esc_html_e('Keep Current Data', 'aedc-importer'); ?></option>
+                                            <?php foreach ($csv_headers as $header) : ?>
+                                                <option value="<?php echo esc_attr($header); ?>"><?php echo esc_html($header); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <?php if ($column->Null === 'YES') : ?>
+                                            <label class="allow-null">
+                                                <input type="checkbox" 
+                                                       name="mapping[<?php echo esc_attr($column->Field); ?>][allow_null]" 
+                                                       value="1" />
+                                                <?php esc_html_e('Allow NULL', 'aedc-importer'); ?>
+                                            </label>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
-                                    <select name="mapping[<?php echo esc_attr($column->Field); ?>][transform]" class="transform-select">
-                                        <option value=""><?php esc_html_e('No transformation', 'aedc-importer'); ?></option>
-                                        <option value="trim"><?php esc_html_e('Trim whitespace', 'aedc-importer'); ?></option>
-                                        <option value="uppercase"><?php esc_html_e('UPPERCASE', 'aedc-importer'); ?></option>
-                                        <option value="lowercase"><?php esc_html_e('lowercase', 'aedc-importer'); ?></option>
-                                        <option value="capitalize"><?php esc_html_e('Capitalize Words', 'aedc-importer'); ?></option>
-                                        <option value="custom"><?php esc_html_e('Custom PHP', 'aedc-importer'); ?></option>
-                                    </select>
-                                    <div class="custom-transform" style="display: none;">
-                                        <textarea name="mapping[<?php echo esc_attr($column->Field); ?>][custom_transform]" 
-                                                  placeholder="<?php esc_attr_e('Enter PHP code. Use $value for the field value.', 'aedc-importer'); ?>"
-                                                  rows="3"></textarea>
-                                    </div>
+                                    <?php if (!strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                        <input type="text" 
+                                               name="mapping[<?php echo esc_attr($column->Field); ?>][default]" 
+                                               class="default-value" 
+                                               placeholder="<?php esc_attr_e('Leave empty for no default', 'aedc-importer'); ?>" />
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                        <select name="mapping[<?php echo esc_attr($column->Field); ?>][transform]" class="transform-select">
+                                            <option value=""><?php esc_html_e('No transformation', 'aedc-importer'); ?></option>
+                                            <option value="trim"><?php esc_html_e('Trim whitespace', 'aedc-importer'); ?></option>
+                                            <option value="uppercase"><?php esc_html_e('UPPERCASE', 'aedc-importer'); ?></option>
+                                            <option value="lowercase"><?php esc_html_e('lowercase', 'aedc-importer'); ?></option>
+                                            <option value="capitalize"><?php esc_html_e('Capitalize Words', 'aedc-importer'); ?></option>
+                                            <option value="custom"><?php esc_html_e('Custom PHP', 'aedc-importer'); ?></option>
+                                        </select>
+                                        <div class="custom-transform" style="display: none;">
+                                            <textarea name="mapping[<?php echo esc_attr($column->Field); ?>][custom_transform]" 
+                                                      placeholder="<?php esc_attr_e('Enter PHP code. Use $value for the field value.', 'aedc-importer'); ?>"
+                                                      rows="3"></textarea>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -404,4 +419,4 @@ jQuery(document).ready(function($) {
         return { isValid: true };
     }
 });
-</script> 
+</script>
