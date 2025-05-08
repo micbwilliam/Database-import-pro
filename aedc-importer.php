@@ -17,6 +17,13 @@ define('AEDC_IMPORTER_VERSION', '1.0.0');
 define('AEDC_IMPORTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('AEDC_IMPORTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Set PHP upload limits
+@ini_set('upload_max_filesize', '50M');
+@ini_set('post_max_size', '50M');
+@ini_set('memory_limit', '128M');
+@ini_set('max_execution_time', '300');
+@ini_set('max_input_time', '300');
+
 // Start session if not already started
 function aedc_importer_start_session() {
     if (!session_id() && !headers_sent()) {

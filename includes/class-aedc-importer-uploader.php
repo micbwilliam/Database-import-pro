@@ -17,38 +17,18 @@ class AEDC_Importer_Uploader {
             'text/csv',
             'text/plain',
             'application/csv',
-            'application/excel',
-            'application/vnd.ms-excel',
-            'application/vnd.msexcel',
             'text/comma-separated-values',
             'text/x-comma-separated-values',
             'text/x-csv'
-        ),
-        'xls' => array(
-            'application/vnd.ms-excel',
-            'application/msexcel',
-            'application/x-msexcel',
-            'application/x-ms-excel',
-            'application/x-excel',
-            'application/x-dos_ms_excel',
-            'application/xls',
-            'application/x-xls'
-        ),
-        'xlsx' => array(
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'application/xml',
-            'application/zip',
-            'application/vnd.ms-office'
         )
     );
 
     /**
-     * Maximum file size in bytes (10MB)
+     * Maximum file size in bytes (50MB)
      *
      * @var int
      */
-    private $max_file_size = 10485760;
+    private $max_file_size = 52428800; // 50MB in bytes
 
     /**
      * Upload directory
@@ -91,6 +71,7 @@ class AEDC_Importer_Uploader {
             }
 
             $file = $_FILES['file'];
+            error_log('AEDC Importer: Starting file upload processing: ' . print_r($file, true));
             
             // Check for PHP upload errors
             if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -99,26 +80,11 @@ class AEDC_Importer_Uploader {
             }
 
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            error_log('AEDC Importer: File extension: ' . $ext);
 
             // Validate file extension
             if (!array_key_exists($ext, $this->allowed_types)) {
-                throw new Exception(__('Invalid file type. Please upload a CSV, XLS, or XLSX file.', 'aedc-importer'));
-            }
-
-            // Validate MIME type
-            $file_mime = $this->get_mime_type($file['tmp_name']);
-            error_log("File MIME type: " . $file_mime); // Debug log
-
-            if (!in_array($file_mime, $this->allowed_types[$ext])) {
-                // Double check for CSV files with generic MIME types
-                if ($ext === 'csv' && $this->is_valid_csv($file['tmp_name'])) {
-                    error_log("CSV validation passed despite MIME type mismatch"); // Debug log
-                } else {
-                    throw new Exception(sprintf(
-                        __('Invalid file format (MIME type: %s). Please upload a valid spreadsheet file.', 'aedc-importer'),
-                        $file_mime
-                    ));
-                }
+                throw new Exception(__('Invalid file type. Please upload a CSV file.', 'aedc-importer'));
             }
 
             // Validate file size
@@ -129,6 +95,9 @@ class AEDC_Importer_Uploader {
                     size_format($this->max_file_size)
                 ));
             }
+
+            // Clean up any existing uploaded files
+            $this->cleanup();
 
             // Ensure upload directory exists and is writable
             if (!wp_mkdir_p($this->upload_dir)) {
@@ -143,36 +112,77 @@ class AEDC_Importer_Uploader {
             $filename = uniqid('import_') . '.' . $ext;
             $filepath = $this->upload_dir . '/' . $filename;
 
-            // Move uploaded file
-            if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+            error_log('AEDC Importer: Moving file to: ' . $filepath);
+
+            // Move uploaded file with chunking support
+            if ($this->move_uploaded_file_chunked($file['tmp_name'], $filepath)) {
+                error_log('AEDC Importer: File moved successfully');
+                
+                // Store file info in session
+                $_SESSION['aedc_importer']['file'] = array(
+                    'name' => $file['name'],
+                    'path' => $filepath,
+                    'type' => $ext,
+                    'size' => $file['size']
+                );
+
+                // Get file headers based on type
+                error_log('AEDC Importer: Getting headers for file type: ' . $ext);
+                $headers = $this->get_file_headers($filepath, $ext);
+                
+                if (is_wp_error($headers)) {
+                    error_log('AEDC Importer Error: ' . $headers->get_error_message());
+                    throw new Exception($headers->get_error_message());
+                }
+
+                if (empty($headers)) {
+                    error_log('AEDC Importer Error: No headers found in file');
+                    throw new Exception(__('No headers found in the uploaded file', 'aedc-importer'));
+                }
+
+                $_SESSION['aedc_importer']['headers'] = $headers;
+                error_log('AEDC Importer: Headers extracted successfully: ' . print_r($headers, true));
+
+                wp_send_json_success(array(
+                    'filename' => $file['name'],
+                    'size' => size_format($file['size']),
+                    'headers' => $headers,
+                    'message' => __('File uploaded successfully', 'aedc-importer')
+                ));
+            } else {
                 throw new Exception(__('Failed to move uploaded file', 'aedc-importer'));
             }
 
-            // Store file info in session
-            $_SESSION['aedc_importer']['file'] = array(
-                'name' => $file['name'],
-                'path' => $filepath,
-                'type' => $ext
-            );
-
-            // Get file headers
-            $headers = $this->get_file_headers($filepath, $ext);
-            if (is_wp_error($headers)) {
-                throw new Exception($headers->get_error_message());
-            }
-
-            $_SESSION['aedc_importer']['headers'] = $headers;
-
-            wp_send_json_success(array(
-                'filename' => $file['name'],
-                'size' => size_format($file['size']),
-                'headers' => $headers
-            ));
-
         } catch (Exception $e) {
-            error_log("AEDC Importer Error: " . $e->getMessage()); // Debug log
+            error_log("AEDC Importer Error: " . $e->getMessage());
             wp_send_json_error($e->getMessage());
         }
+    }
+
+    /**
+     * Move uploaded file with chunking support for large files
+     */
+    private function move_uploaded_file_chunked($source, $dest, $chunk_size = 1048576) {
+        $handle_in = @fopen($source, 'rb');
+        $handle_out = @fopen($dest, 'wb');
+
+        if (!$handle_in || !$handle_out) {
+            return false;
+        }
+
+        while (!feof($handle_in)) {
+            if (fwrite($handle_out, fread($handle_in, $chunk_size)) === false) {
+                fclose($handle_in);
+                fclose($handle_out);
+                @unlink($dest);
+                return false;
+            }
+        }
+
+        fclose($handle_in);
+        fclose($handle_out);
+
+        return true;
     }
 
     /**
@@ -249,18 +259,14 @@ class AEDC_Importer_Uploader {
     }
 
     /**
-     * Get headers from uploaded file
+     * Get file headers
      *
      * @param string $filepath File path
      * @param string $type File type
      * @return array|WP_Error Headers array or error
      */
     private function get_file_headers($filepath, $type) {
-        if ($type === 'csv') {
-            return $this->get_csv_headers($filepath);
-        } else {
-            return $this->get_excel_headers($filepath);
-        }
+        return $this->get_csv_headers($filepath);
     }
 
     /**
@@ -289,37 +295,6 @@ class AEDC_Importer_Uploader {
 
         fclose($handle);
         return $headers;
-    }
-
-    /**
-     * Get headers from Excel file
-     *
-     * @param string $filepath File path
-     * @return array|WP_Error Headers array or error
-     */
-    private function get_excel_headers($filepath) {
-        if (!class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
-            return new WP_Error('missing_dependency', __('PhpSpreadsheet library is required for Excel files', 'aedc-importer'));
-        }
-
-        try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filepath);
-            $worksheet = $spreadsheet->getActiveSheet();
-            $headers = array();
-
-            foreach ($worksheet->getRowIterator(1, 1) as $row) {
-                foreach ($row->getCellIterator() as $cell) {
-                    $value = trim($cell->getValue());
-                    if (!empty($value)) {
-                        $headers[] = sanitize_text_field($value);
-                    }
-                }
-            }
-
-            return $headers;
-        } catch (Exception $e) {
-            return new WP_Error('excel_error', $e->getMessage());
-        }
     }
 
     /**
@@ -354,4 +329,4 @@ class AEDC_Importer_Uploader {
             @unlink($_SESSION['aedc_importer']['file']['path']);
         }
     }
-} 
+}

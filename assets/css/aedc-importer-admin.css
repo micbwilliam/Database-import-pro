@@ -109,6 +109,30 @@
 }
 
 .upload-preview {
+    background: #fff;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+
+.file-info {
+    margin-bottom: 10px;
+}
+
+.file-name {
+    font-weight: bold;
+    color: #2271b1;
+    margin: 0;
+}
+
+.file-size {
+    color: #666;
+    font-size: 12px;
+    margin: 5px 0 0;
+}
+
+.upload-preview {
     margin-top: 20px;
     display: flex;
     justify-content: space-between;
@@ -1077,4 +1101,4 @@
     .default-value {
         max-width: 100%;
     }
-} 
+}

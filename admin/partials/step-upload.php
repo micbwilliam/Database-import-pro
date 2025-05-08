@@ -29,13 +29,19 @@ if (!defined('WPINC')) {
                     <span class="dashicons dashicons-upload"></span>
                     <p><?php esc_html_e('Drag and drop your file here', 'aedc-importer'); ?></p>
                     <p><?php esc_html_e('or', 'aedc-importer'); ?></p>
-                    <input type="file" name="file" id="file-input" accept=".csv,.xls,.xlsx" class="file-input" />
+                    <input type="file" name="file" id="file-input" accept=".csv" class="file-input" />
                     <label for="file-input" class="button button-primary"><?php esc_html_e('Select File', 'aedc-importer'); ?></label>
                 </div>
                 <div class="upload-preview" style="display: none;">
                     <div class="file-info">
                         <p class="file-name"></p>
                         <p class="file-size"></p>
+                    </div>
+                    <div class="upload-progress" style="display: none;">
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill"></div>
+                        </div>
+                        <p class="progress-text">0%</p>
                     </div>
                     <button type="button" class="button button-secondary remove-file"><?php esc_html_e('Remove', 'aedc-importer'); ?></button>
                 </div>
@@ -62,9 +68,9 @@ if (!defined('WPINC')) {
     <div class="upload-requirements">
         <h3><?php esc_html_e('File Requirements', 'aedc-importer'); ?></h3>
         <ul>
-            <li><?php esc_html_e('Accepted formats: CSV, XLS, XLSX', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('Maximum file size: 10MB', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('UTF-8 encoding recommended for CSV files', 'aedc-importer'); ?></li>
+            <li><?php esc_html_e('Accepted format: CSV', 'aedc-importer'); ?></li>
+            <li><?php esc_html_e('Maximum file size: 50MB', 'aedc-importer'); ?></li>
+            <li><?php esc_html_e('UTF-8 encoding recommended', 'aedc-importer'); ?></li>
             <li><?php esc_html_e('First row should contain column headers', 'aedc-importer'); ?></li>
         </ul>
     </div>
@@ -81,6 +87,59 @@ jQuery(document).ready(function($) {
     const fileSizeDisplay = $('.file-size');
     const columnList = $('.column-list');
     const submitButton = $('#upload-submit');
+    const progressBar = $('.progress-bar-fill');
+    const progressText = $('.progress-text');
+
+    // Add CSS to ensure progress bar is always visible
+    const style = `
+        <style>
+            .upload-progress {
+                margin: 15px 0;
+                padding: 10px;
+                background: #f0f0f0;
+                border-radius: 4px;
+                border: 1px solid #ddd;
+            }
+            .progress-bar {
+                width: 100%;
+                height: 24px;
+                background: #f0f0f0;
+                border-radius: 12px;
+                overflow: hidden;
+                position: relative;
+                box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .progress-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #2271b1, #72aee6);
+                transition: width 0.3s ease;
+                min-width: 5%;
+                position: relative;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .progress-text {
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                color: #fff;
+                text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+                font-weight: bold;
+                font-size: 13px;
+                z-index: 1;
+            }
+            .upload-status {
+                margin-top: 8px;
+                text-align: center;
+                color: #666;
+                font-size: 13px;
+            }
+            .upload-complete .progress-bar-fill {
+                background: linear-gradient(90deg, #46b450, #6cc677);
+            }
+        </style>
+    `;
+    $('head').append(style);
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -109,11 +168,20 @@ jQuery(document).ready(function($) {
     // Handle form submission
     uploadForm.on('submit', function(e) {
         e.preventDefault();
+        
         if (!fileInput[0].files.length) {
             showError('Please select a file to upload.');
             return;
         }
-        window.location.href = window.location.href.replace(/step=\d/, 'step=2');
+
+        // Check if file is already uploaded successfully
+        if (submitButton.data('upload-complete')) {
+            window.location.href = window.location.href.replace(/step=\d/, 'step=2');
+            return;
+        }
+
+        // If file is not uploaded yet, trigger the upload
+        uploadFile(fileInput[0].files[0]);
     });
 
     function preventDefaults(e) {
@@ -154,21 +222,18 @@ jQuery(document).ready(function($) {
         const allowedTypes = [
             'text/csv',
             'text/plain',
-            'application/csv',
-            'application/excel',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            'application/csv'
         ];
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 50 * 1024 * 1024; // 50MB
 
         const ext = file.name.split('.').pop().toLowerCase();
-        if (!['csv', 'xls', 'xlsx'].includes(ext)) {
-            showError('Please upload a CSV, XLS, or XLSX file.');
+        if (ext !== 'csv') {
+            showError('Please upload a CSV file.');
             return false;
         }
 
         if (file.size > maxSize) {
-            showError('File size must be less than 10MB.');
+            showError('File size must be less than 50MB.');
             return false;
         }
 
@@ -181,6 +246,7 @@ jQuery(document).ready(function($) {
         fileSizeDisplay.text(formatFileSize(file.size));
         uploadPreview.show();
         submitButton.prop('disabled', true);
+        $('.upload-options').show(); // Show options for all file types
     }
 
     function formatFileSize(bytes) {
@@ -198,6 +264,8 @@ jQuery(document).ready(function($) {
         $('.upload-instructions').show();
         submitButton.prop('disabled', true);
         $('#upload-error').hide();
+        $('.upload-progress').removeClass('upload-complete');
+        $('.upload-status').text('');
     }
 
     function uploadFile(file) {
@@ -205,10 +273,25 @@ jQuery(document).ready(function($) {
         formData.append('action', 'aedc_upload_file');
         formData.append('nonce', aedcImporter.nonce);
         formData.append('file', file);
+        formData.append('has_headers', $('input[name="has_headers"]').prop('checked'));
 
-        // Show loading state
+        // Reset and show upload state
         submitButton.prop('disabled', true).text('Uploading...');
         $('#upload-error').hide();
+        $('.upload-progress').show().removeClass('upload-complete');
+        progressBar.css('width', '5%');
+        progressText.text('Starting upload...');
+        
+        // Add status message container if it doesn't exist
+        if ($('.upload-status').length === 0) {
+            $('.upload-progress').append('<div class="upload-status">Starting upload...</div>');
+        }
+        const statusText = $('.upload-status');
+
+        // Create upload timeout warning
+        let uploadTimeout = setTimeout(() => {
+            showError('Upload is taking longer than expected. Please wait...');
+        }, 10000);
 
         $.ajax({
             url: aedcImporter.ajax_url,
@@ -216,18 +299,73 @@ jQuery(document).ready(function($) {
             data: formData,
             processData: false,
             contentType: false,
+            xhr: function() {
+                const xhr = new window.XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        clearTimeout(uploadTimeout);
+                        const percentComplete = Math.max((e.loaded / e.total) * 100, 5);
+                        progressBar.css('width', percentComplete + '%');
+                        progressText.text(Math.round(percentComplete) + '%');
+                        
+                        if (percentComplete === 100) {
+                            statusText.text('Processing file...');
+                        } else {
+                            statusText.text('Uploading: ' + Math.round(percentComplete) + '%');
+                        }
+                    }
+                }, false);
+                
+                xhr.upload.addEventListener('loadstart', function() {
+                    console.log('Upload started');
+                    progressBar.css('width', '5%');
+                    progressText.text('Starting upload...');
+                    statusText.text('Upload started');
+                });
+                
+                xhr.upload.addEventListener('loadend', function() {
+                    console.log('Upload ended');
+                    progressBar.css('width', '100%');
+                    progressText.text('Processing...');
+                    statusText.text('Processing file...');
+                });
+                
+                return xhr;
+            },
             success: function(response) {
-                console.log('Upload response:', response); // Debug log
+                clearTimeout(uploadTimeout);
+                console.log('Upload completed:', response);
+                
+                // Keep progress bar at 100% and show completion
+                progressBar.css('width', '100%');
+                progressText.text('100%');
+                $('.upload-progress').addClass('upload-complete');
+                statusText.text('Upload completed successfully!');
+                
                 if (response.success) {
                     if (response.data && response.data.headers) {
                         showColumnPreview(response.data.headers);
-                        // Store headers in session via another AJAX call
+                        // Store headers in session
                         $.post(ajaxurl, {
                             action: 'aedc_store_headers',
                             nonce: aedcImporter.nonce,
                             headers: JSON.stringify(response.data.headers)
+                        }, function(headerResponse) {
+                            console.log('Headers stored:', headerResponse);
+                            // Keep showing success state
+                            $('.upload-progress').show().addClass('upload-complete');
+                            progressBar.css('width', '100%');
+                            progressText.text('100%');
+                            statusText.text('Upload completed successfully!');
+                            // Enable the continue button
+                            submitButton.prop('disabled', false)
+                                      .text('Continue to Next Step')
+                                      .data('upload-complete', true);
+                        }).fail(function(xhr, status, error) {
+                            console.error('Failed to store headers:', error);
+                            showError('Failed to process file headers. Please try again.');
+                            removeFile();
                         });
-                        submitButton.prop('disabled', false).text('Upload and Continue');
                     } else {
                         showError('No headers found in the uploaded file');
                         removeFile();
@@ -239,7 +377,9 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Upload error:', {xhr, status, error}); // Debug log
+                clearTimeout(uploadTimeout);
+                console.error('Upload error:', {xhr, status, error});
+                statusText.text('Upload failed');
                 let errorMessage = 'Upload failed. ';
                 if (xhr.responseJSON && xhr.responseJSON.data) {
                     errorMessage += xhr.responseJSON.data;
@@ -250,8 +390,6 @@ jQuery(document).ready(function($) {
                 }
                 showError(errorMessage);
                 removeFile();
-            },
-            complete: function() {
                 submitButton.prop('disabled', false).text('Upload and Continue');
             }
         });
@@ -274,4 +412,4 @@ jQuery(document).ready(function($) {
         previewContainer.show();
     }
 });
-</script> 
+</script>
