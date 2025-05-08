@@ -177,13 +177,14 @@ class AEDC_Importer_Mapping {
             wp_send_json_error(__('Invalid mapping data', 'aedc-importer'));
         }
 
-        // Validate mapping schema
+        // Updated schema to handle auto-increment and keep-current fields
         $schema = array(
             'type' => 'object',
             'patternProperties' => array(
                 '^.*$' => array(
                     'type' => 'object',
                     'properties' => array(
+                        'skip' => array('type' => 'boolean'),
                         'csv_field' => array('type' => 'string'),
                         'default_value' => array('type' => 'string'),
                         'transform' => array(
@@ -193,13 +194,16 @@ class AEDC_Importer_Mapping {
                         'custom_transform' => array('type' => 'string'),
                         'allow_null' => array('type' => 'boolean')
                     ),
-                    'required' => array('csv_field', 'transform')
+                    'required' => array('csv_field') // Only require csv_field as other fields are optional
                 )
             )
         );
 
+        error_log('AEDC Importer Debug: Validating mapping data: ' . print_r($mapping, true));
+
         $validation = $this->validate_schema($mapping, $schema);
         if (!$validation['valid']) {
+            error_log('AEDC Importer Debug: Validation failed: ' . print_r($validation, true));
             wp_send_json_error($validation['error']);
         }
 
@@ -451,6 +455,10 @@ class AEDC_Importer_Mapping {
                 }
                 return $value;
             default:
+                // Auto-transform dates if the value looks like a date with backslashes
+                if (preg_match('/^\d{4}\\\d{1,2}\\\d{1,2}$/', $value)) {
+                    return $this->transform_date($value);
+                }
                 return $value;
         }
     }
@@ -563,14 +571,27 @@ class AEDC_Importer_Mapping {
      * Validate field type
      */
     private function validate_field_type($value, $db_type) {
+        // Handle special case for empty values and [CURRENT DATA]
+        if ($value === '' || $value === null || $value === '[CURRENT DATA]') {
+            return true;
+        }
+
         // Extract base type and length/values
         if (preg_match('/^([a-z]+)(\(([^)]+)\))?/', strtolower($db_type), $matches)) {
             $type = $matches[1];
             $constraint = $matches[3] ?? '';
             
             switch ($type) {
-                case 'int':
                 case 'tinyint':
+                    // Special handling for boolean (tinyint(1))
+                    if ($constraint === '1') {
+                        if (is_bool($value)) return true;
+                        if (is_numeric($value)) return in_array((int)$value, [0, 1]);
+                        $val = strtolower(trim($value));
+                        return in_array($val, ['0', '1', 'true', 'false', 'yes', 'no']);
+                    }
+                    // Fall through to regular int validation if not tinyint(1)
+                case 'int':
                 case 'smallint':
                 case 'mediumint':
                 case 'bigint':
@@ -582,14 +603,21 @@ class AEDC_Importer_Mapping {
                     return is_numeric($value);
                 
                 case 'date':
-                    return strtotime($value) !== false;
-                
                 case 'datetime':
                 case 'timestamp':
-                    return strtotime($value) !== false;
+                    // Handle MySQL functions and special values
+                    $special_values = [
+                        'CURRENT_TIMESTAMP', 'CURRENT_TIMESTAMP()',
+                        'NOW()', 'NOW', 'CURRENT_DATE()', 'CURRENT_DATE',
+                        'NULL', 'null'
+                    ];
+                    if (in_array(strtoupper($value), $special_values)) {
+                        return true;
+                    }
+                    return $this->validate_date($value);
                 
                 case 'time':
-                    return preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/', $value);
+                    return preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $value);
                 
                 case 'year':
                     return is_numeric($value) && strlen($value) === 4;
@@ -604,20 +632,86 @@ class AEDC_Importer_Mapping {
                     $allowed_values = array_map('trim', explode(',', str_replace("'", '', $constraint)));
                     return in_array($value, $allowed_values);
                 
-                case 'text':
-                case 'tinytext':
-                case 'mediumtext':
-                case 'longtext':
-                case 'blob':
-                case 'tinyblob':
-                case 'mediumblob':
-                case 'longblob':
-                    return true;
-                    
                 default:
                     return true;
             }
         }
         return true;
+    }
+
+    private function validate_date($value) {
+        // First, handle backslash-separated dates by converting them to dashes
+        if (strpos($value, '\\') !== false) {
+            $value = str_replace('\\', '-', $value);
+        }
+
+        // Handle common date/datetime formats
+        $formats = [
+            // SQL standard formats
+            'Y-m-d H:i:s',
+            'Y-m-d\TH:i:s',
+            'Y-m-d',
+            
+            // Common US formats
+            'm/d/Y H:i:s',
+            'm/d/Y',
+            'm-d-Y H:i:s',
+            'm-d-Y',
+            
+            // Common UK/European formats
+            'd/m/Y H:i:s',
+            'd/m/Y',
+            'd-m-Y H:i:s',
+            'd-m-Y',
+            
+            // Other common formats
+            'Y/m/d H:i:s',
+            'Y/m/d',
+            'Y-m-d',
+            'Y.m.d',
+            'd.m.Y H:i:s',
+            'd.m.Y',
+            
+            // Specific format for your data
+            'Y-m-d',       // This will match 2005-12-22 (converted from 2005\12\22)
+            
+            // Short year formats
+            'd/m/y',
+            'm/d/y',
+            'y-m-d',
+            'y/m/d'
+        ];
+
+        // First try exact format matching
+        foreach ($formats as $format) {
+            $date = DateTime::createFromFormat($format, $value);
+            if ($date && $date->format($format) === $value) {
+                return true;
+            }
+        }
+
+        // If exact matching fails, try strtotime for more flexible parsing
+        $timestamp = strtotime($value);
+        if ($timestamp !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function transform_date($value) {
+        // Convert backslashes to dashes
+        if (strpos($value, '\\') !== false) {
+            $value = str_replace('\\', '-', $value);
+        }
+
+        // Try to parse the date
+        $date = date_create($value);
+        if ($date) {
+            // Return in MySQL format
+            return $date->format('Y-m-d');
+        }
+
+        return $value;
     }
 }

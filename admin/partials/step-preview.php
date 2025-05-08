@@ -243,14 +243,34 @@ jQuery(document).ready(function($) {
 // Add helper function for data type validation
 <?php
 function validate_field_type($value, $db_type) {
+    global $mapping;
+    
+    // Handle special case for "Keep Current Data"
+    if ($value === '[CURRENT DATA]') {
+        return true;
+    }
+    
+    // Handle special case for empty values
+    if ($value === '' || $value === null) {
+        return true;
+    }
+
     // Extract base type and length/values
     if (preg_match('/^([a-z]+)(\(([^)]+)\))?/', strtolower($db_type), $matches)) {
         $type = $matches[1];
         $constraint = $matches[3] ?? '';
         
         switch ($type) {
-            case 'int':
             case 'tinyint':
+                // Special handling for boolean (tinyint(1))
+                if ($constraint === '1') {
+                    if (is_bool($value)) return true;
+                    if (is_numeric($value)) return in_array((int)$value, [0, 1]);
+                    $val = strtolower(trim($value));
+                    return in_array($val, ['0', '1', 'true', 'false', 'yes', 'no']);
+                }
+                // Fall through to regular int validation if not tinyint(1)
+            case 'int':
             case 'smallint':
             case 'mediumint':
             case 'bigint':
@@ -266,6 +286,11 @@ function validate_field_type($value, $db_type) {
             
             case 'datetime':
             case 'timestamp':
+                // Accept CURRENT_TIMESTAMP and other MySQL datetime functions
+                $special_values = ['CURRENT_TIMESTAMP', 'NOW()', 'CURRENT_TIMESTAMP()', 'NOW'];
+                if (in_array(strtoupper($value), $special_values)) {
+                    return true;
+                }
                 return strtotime($value) !== false;
             
             case 'time':
@@ -283,13 +308,6 @@ function validate_field_type($value, $db_type) {
             case 'set':
                 $allowed_values = array_map('trim', explode(',', str_replace("'", '', $constraint)));
                 return in_array($value, $allowed_values);
-            
-            // Text types don't need validation
-            case 'text':
-            case 'tinytext':
-            case 'mediumtext':
-            case 'longtext':
-                return true;
             
             default:
                 return true;

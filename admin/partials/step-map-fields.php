@@ -80,15 +80,15 @@ if (empty($csv_headers)) {
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if (!strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                    <?php if (strpos($column->Extra, 'auto_increment') === false) : ?>
                                         <input type="text" 
-                                               name="mapping[<?php echo esc_attr($column->Field); ?>][default]" 
+                                               name="mapping[<?php echo esc_attr($column->Field); ?>][default_value]" 
                                                class="default-value" 
                                                placeholder="<?php esc_attr_e('Leave empty for no default', 'aedc-importer'); ?>" />
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if (!strpos($column->Extra, 'auto_increment') !== false) : ?>
+                                    <?php if (strpos($column->Extra, 'auto_increment') === false) : ?>
                                         <select name="mapping[<?php echo esc_attr($column->Field); ?>][transform]" class="transform-select">
                                             <option value=""><?php esc_html_e('No transformation', 'aedc-importer'); ?></option>
                                             <option value="trim"><?php esc_html_e('Trim whitespace', 'aedc-importer'); ?></option>
@@ -269,22 +269,39 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         
         const mappingData = collectMappingData();
-        const validationResult = validateMapping(mappingData);
+        console.log('Submitting mapping data:', mappingData); // Debug log
         
+        const validationResult = validateMapping(mappingData);
         if (!validationResult.isValid) {
             alert(validationResult.message);
             return;
         }
 
-        $.post(ajaxurl, {
-            action: 'aedc_save_field_mapping',
-            nonce: $('#aedc_nonce').val(),
-            mapping: JSON.stringify(mappingData)
-        }, function(response) {
-            if (response.success) {
-                window.location.href = window.location.href.replace(/step=\d/, 'step=4');
-            } else {
-                alert(response.data || '<?php esc_html_e('Failed to save mapping', 'aedc-importer'); ?>');
+        // Show loading state
+        const submitButton = $('#mapping-submit');
+        submitButton.prop('disabled', true).text('<?php esc_html_e('Saving...', 'aedc-importer'); ?>');
+
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'aedc_save_field_mapping',
+                nonce: $('#aedc_nonce').val(),
+                mapping: JSON.stringify(mappingData)
+            },
+            success: function(response) {
+                console.log('Save mapping response:', response); // Debug log
+                if (response.success) {
+                    window.location.href = window.location.href.replace(/step=\d/, 'step=4');
+                } else {
+                    alert(response.data || '<?php esc_html_e('Failed to save mapping', 'aedc-importer'); ?>');
+                    submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'aedc-importer'); ?>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Save mapping error:', {xhr, status, error}); // Debug log
+                alert('<?php esc_html_e('Failed to save mapping. Please try again.', 'aedc-importer'); ?>');
+                submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'aedc-importer'); ?>');
             }
         });
     });
@@ -390,7 +407,14 @@ jQuery(document).ready(function($) {
         $('.mapping-table tbody tr').each(function() {
             const columnName = $(this).find('.column-name strong').text();
             const isNullable = $(this).find('.allow-null').length > 0;
-            const data = mapping[columnName];
+            const isAutoIncrement = $(this).find('.column-auto-increment').length > 0;
+            const data = mapping[columnName] || {};
+            const isKeepCurrent = data.csv_field === '__keep_current__';
+
+            // Skip validation for auto-increment fields and keep-current fields
+            if (isAutoIncrement || isKeepCurrent) {
+                return;
+            }
 
             if (!isNullable && !data.csv_field && !data.default_value) {
                 requiredColumns.push(columnName);
