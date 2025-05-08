@@ -29,12 +29,14 @@ add_action('init', 'aedc_importer_start_session');
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-admin.php';
 require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-uploader.php';
+require_once AEDC_IMPORTER_PLUGIN_DIR . 'includes/class-aedc-importer-table.php';
 
 /**
  * Initialize AJAX handlers
  */
 function aedc_importer_init_ajax() {
     $uploader = new AEDC_Importer_Uploader();
+    $table = new AEDC_Importer_Table();
     
     // Register AJAX actions
     add_action('wp_ajax_aedc_upload_file', array($uploader, 'handle_upload'));

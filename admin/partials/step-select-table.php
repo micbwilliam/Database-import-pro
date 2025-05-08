@@ -50,7 +50,9 @@ $tables = $wpdb->get_results('SHOW TABLES', ARRAY_N);
             </div>
 
             <div class="table-actions">
-                <button type="submit" class="button button-primary" id="table-select-submit"><?php esc_html_e('Continue to Field Mapping', 'aedc-importer'); ?></button>
+                <button type="submit" class="button button-primary" id="table-select-submit" disabled>
+                    <?php esc_html_e('Continue to Field Mapping', 'aedc-importer'); ?>
+                </button>
             </div>
         </form>
     </div>
@@ -67,6 +69,10 @@ $tables = $wpdb->get_results('SHOW TABLES', ARRAY_N);
 
 <script>
 jQuery(document).ready(function($) {
+    const form = $('#aedc-table-selection-form');
+    const submitButton = $('#table-select-submit');
+    const structurePreview = $('#structure-preview');
+
     // Table search functionality
     $('#table-search').on('input', function() {
         const searchTerm = $(this).val().toLowerCase();
@@ -76,39 +82,44 @@ jQuery(document).ready(function($) {
         });
     });
 
+    // Enable submit button when a table is selected
+    $('input[name="target_table"]').on('change', function() {
+        submitButton.prop('disabled', false);
+    });
+
     // Preview table structure
     $('.preview-structure').on('click', function() {
         const table = $(this).data('table');
-        const preview = $('#structure-preview');
-        
-        preview.html('<p class="loading"><?php esc_html_e('Loading structure...', 'aedc-importer'); ?></p>');
+        structurePreview.html('<p class="loading"><?php esc_html_e('Loading structure...', 'aedc-importer'); ?></p>');
         
         $.post(ajaxurl, {
             action: 'aedc_get_table_structure',
-            table: table,
-            nonce: $('#aedc_nonce').val()
+            nonce: $('#aedc_nonce').val(),
+            table: table
         }, function(response) {
             if (response.success) {
-                preview.html(response.data);
+                structurePreview.html(response.data);
             } else {
-                preview.html('<p class="error">' + response.data + '</p>');
+                structurePreview.html('<p class="error">' + response.data + '</p>');
             }
         });
     });
 
-    // Form submission
-    $('#aedc-table-selection-form').on('submit', function(e) {
+    // Handle form submission
+    form.on('submit', function(e) {
         e.preventDefault();
         
-        if (!$('input[name="target_table"]:checked').length) {
+        const selectedTable = $('input[name="target_table"]:checked').val();
+        if (!selectedTable) {
             alert('<?php esc_html_e('Please select a target table.', 'aedc-importer'); ?>');
             return;
         }
 
-        const formData = $(this).serialize();
-        formData.append('action', 'aedc_save_target_table');
-
-        $.post(ajaxurl, formData, function(response) {
+        $.post(ajaxurl, {
+            action: 'aedc_save_target_table',
+            nonce: $('#aedc_nonce').val(),
+            table: selectedTable
+        }, function(response) {
             if (response.success) {
                 window.location.href = window.location.href.replace(/step=\d/, 'step=3');
             } else {
