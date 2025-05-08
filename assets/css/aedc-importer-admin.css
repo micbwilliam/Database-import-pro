@@ -565,20 +565,30 @@
     margin-bottom: 30px;
 }
 
+/* Progress Bar */
 .progress-bar {
     height: 20px;
     background: #f1f1f1;
     border-radius: 10px;
     overflow: hidden;
+    position: relative;
     margin-bottom: 20px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
 
 .progress-bar-fill {
     height: 100%;
-    background: #2271b1;
+    width: 0;
+    background: linear-gradient(90deg, #2271b1, #72aee6);
     border-radius: 10px;
     transition: width 0.3s ease;
     position: relative;
+    min-width: 2%; /* Ensure always visible */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.progress-bar-fill.complete {
+    background: #46b450;
 }
 
 .progress-text {
@@ -590,6 +600,7 @@
     font-size: 12px;
     font-weight: bold;
     text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+    white-space: nowrap;
 }
 
 .progress-stats {
@@ -764,6 +775,11 @@
 .stat-box.warning {
     background: #fff8e5;
     border: 1px solid #ffeeba;
+}
+
+.stat-box.rate {
+    background: #e6f3fa;
+    border: 1px solid #b8d8ed;
 }
 
 .stat-number {

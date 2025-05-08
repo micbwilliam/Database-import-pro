@@ -79,6 +79,16 @@ class AEDC_Importer_Admin {
             'dashicons-upload',
             30
         );
+
+        // Add logs submenu
+        add_submenu_page(
+            'aedc-importer',
+            __('Import Logs', 'aedc-importer'),
+            __('Import Logs', 'aedc-importer'),
+            'manage_options',
+            'aedc-importer-logs',
+            array($this, 'display_logs_page')
+        );
     }
 
     /**
@@ -102,6 +112,15 @@ class AEDC_Importer_Admin {
      */
     public function display_plugin_admin_page() {
         include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/aedc-importer-admin-display.php';
+    }
+
+    /**
+     * Render the logs page for this plugin.
+     *
+     * @since    1.0.0
+     */
+    public function display_logs_page() {
+        include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/view-logs.php';
     }
 
     /**
@@ -145,4 +164,4 @@ class AEDC_Importer_Admin {
         // Handle import process logic here
         wp_send_json_success(array('message' => 'Import completed successfully'));
     }
-} 
+}

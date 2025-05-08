@@ -1,0 +1,207 @@
+<?php
+/**
+ * Import Logs View Template
+ *
+ * @since      1.0.0
+ * @package    AEDC_Importer
+ */
+
+// If this file is called directly, abort.
+if (!defined('WPINC')) {
+    die;
+}
+?>
+
+<div class="wrap">
+    <h1><?php echo esc_html(get_admin_page_title()); ?> - <?php esc_html_e('Import Logs', 'aedc-importer'); ?></h1>
+    
+    <div class="import-logs-container">
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e('Date/Time', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('User', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('File Name', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Table', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Total Rows', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Status', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Success Rate', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Duration', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Actions', 'aedc-importer'); ?></th>
+                </tr>
+            </thead>
+            <tbody id="import-logs-list">
+                <tr>
+                    <td colspan="9"><?php esc_html_e('Loading...', 'aedc-importer'); ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+jQuery(document).ready(function($) {
+    // Load import logs
+    function loadImportLogs() {
+        $.post(ajaxurl, {
+            action: 'aedc_get_import_logs',
+            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>'
+        }, function(response) {
+            if (response.success && response.data) {
+                const tbody = $('#import-logs-list');
+                tbody.empty();
+                
+                response.data.forEach(function(log) {
+                    const successRate = calculateSuccessRate(log);
+                    const status = getStatusBadge(log.status);
+                    const actions = getActionButtons(log);
+                    
+                    tbody.append(`
+                        <tr>
+                            <td>${formatDate(log.import_date)}</td>
+                            <td>${log.user}</td>
+                            <td>${log.file_name}</td>
+                            <td>${log.table_name}</td>
+                            <td>${log.total_rows}</td>
+                            <td>${status}</td>
+                            <td>${successRate}%</td>
+                            <td>${formatDuration(log.duration)}</td>
+                            <td>${actions}</td>
+                        </tr>
+                    `);
+                });
+            } else {
+                $('#import-logs-list').html(
+                    '<tr><td colspan="9"><?php esc_html_e('No import logs found.', 'aedc-importer'); ?></td></tr>'
+                );
+            }
+        }).fail(function() {
+            $('#import-logs-list').html(
+                '<tr><td colspan="9"><?php esc_html_e('Error loading import logs.', 'aedc-importer'); ?></td></tr>'
+            );
+        });
+    }
+
+    function calculateSuccessRate(log) {
+        const successful = parseInt(log.inserted) + parseInt(log.updated);
+        const total = parseInt(log.total_rows);
+        return total > 0 ? Math.round((successful / total) * 100) : 0;
+    }
+
+    function getStatusBadge(status) {
+        const badges = {
+            'completed': '<span class="status-badge success">Completed</span>',
+            'completed_with_errors': '<span class="status-badge warning">Completed with Errors</span>',
+            'failed': '<span class="status-badge error">Failed</span>'
+        };
+        return badges[status] || status;
+    }
+
+    function getActionButtons(log) {
+        let buttons = `
+            <button type="button" class="button button-small view-details" data-id="${log.id}">
+                <?php esc_html_e('View Details', 'aedc-importer'); ?>
+            </button>
+        `;
+        
+        if (log.failed > 0) {
+            buttons += `
+                <button type="button" class="button button-small export-errors" data-id="${log.id}">
+                    <?php esc_html_e('Export Errors', 'aedc-importer'); ?>
+                </button>
+            `;
+        }
+        
+        return buttons;
+    }
+
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleString();
+    }
+
+    function formatDuration(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m ${remainingSeconds}s`;
+    }
+
+    // Handle error export
+    $(document).on('click', '.export-errors', function() {
+        const logId = $(this).data('id');
+        
+        $.post(ajaxurl, {
+            action: 'aedc_export_error_log',
+            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>',
+            log_id: logId
+        }, function(response) {
+            if (response.success && response.data) {
+                // Create and download CSV file
+                const blob = new Blob([response.data], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'import-errors.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else {
+                alert('<?php esc_html_e('Failed to export error log.', 'aedc-importer'); ?>');
+            }
+        }).fail(function() {
+            alert('<?php esc_html_e('Error exporting log file.', 'aedc-importer'); ?>');
+        });
+    });
+
+    // Handle view details
+    $(document).on('click', '.view-details', function() {
+        const logId = $(this).data('id');
+        // TODO: Implement details view in modal
+    });
+
+    // Load logs on page load
+    loadImportLogs();
+});
+</script>
+
+<style>
+.import-logs-container {
+    margin-top: 20px;
+}
+
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-badge.success {
+    background: #46b450;
+    color: white;
+}
+
+.status-badge.warning {
+    background: #ffb900;
+    color: #32373c;
+}
+
+.status-badge.error {
+    background: #dc3232;
+    color: white;
+}
+
+.button.button-small {
+    margin: 0 5px;
+}
+
+.export-errors {
+    color: #dc3232;
+    border-color: #dc3232;
+}
+
+.export-errors:hover {
+    background: #dc3232;
+    color: white;
+}
+</style>

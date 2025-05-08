@@ -99,6 +99,21 @@ class AEDC_Importer_Processor {
                             error_log('AEDC Importer: Reached end of file while skipping to batch');
                             $stats['completed'] = true;
                             fclose($handle);
+                            
+                            // If this is the final batch, save the import log
+                            if ($stats['completed']) {
+                                $error_log = array();
+                                foreach ($stats['messages'] as $msg) {
+                                    if ($msg['type'] === 'error') {
+                                        $error_log[] = array(
+                                            'row' => $msg['row'] ?? 'unknown',
+                                            'message' => $msg['message']
+                                        );
+                                    }
+                                }
+                                $this->save_import_log($stats, json_encode($error_log));
+                            }
+                            
                             wp_send_json_success($stats);
                             return;
                         }
@@ -109,6 +124,7 @@ class AEDC_Importer_Processor {
                 // Process batch
                 $processed = 0;
                 while ($processed < self::BATCH_SIZE && ($row = fgetcsv($handle)) !== false) {
+                    $row_num = ($batch * self::BATCH_SIZE) + $processed + 1;
                     $result = $this->process_row($row, $table, $mapping, $import_mode, $key_columns, $allow_null);
                     
                     $stats['processed']++;
@@ -117,9 +133,10 @@ class AEDC_Importer_Processor {
                     if (!empty($result['message'])) {
                         $stats['messages'][] = array(
                             'type' => $result['status'] === 'failed' ? 'error' : 'info',
+                            'row' => $row_num,
                             'message' => sprintf(
                                 __('Row %d: %s', 'aedc-importer'),
-                                ($batch * self::BATCH_SIZE) + $processed + 1,
+                                $row_num,
                                 $result['message']
                             )
                         );
@@ -130,6 +147,20 @@ class AEDC_Importer_Processor {
 
                 // Check if we've reached the end
                 $stats['completed'] = feof($handle);
+
+                // If this is the final batch, save the import log
+                if ($stats['completed']) {
+                    $error_log = array();
+                    foreach ($stats['messages'] as $msg) {
+                        if ($msg['type'] === 'error') {
+                            $error_log[] = array(
+                                'row' => $msg['row'] ?? 'unknown',
+                                'message' => $msg['message']
+                            );
+                        }
+                    }
+                    $this->save_import_log($stats, json_encode($error_log));
+                }
 
                 fclose($handle);
                 error_log('AEDC Importer: Batch ' . $batch . ' completed. Stats: ' . print_r($stats, true));
@@ -380,6 +411,135 @@ class AEDC_Importer_Processor {
             );
         }
 
+        wp_send_json_success();
+    }
+
+    /**
+     * Save import log to database
+     */
+    private function save_import_log($stats, $error_log = '') {
+        global $wpdb;
+        
+        // Calculate the total duration from the start time
+        $start_time = isset($_SESSION['aedc_importer']['start_time']) ? strtotime($_SESSION['aedc_importer']['start_time']) : 0;
+        $duration = $start_time > 0 ? (time() - $start_time) : 0;
+        
+        // Calculate success rate using the same logic as completion page
+        $successful_records = $stats['inserted'] + $stats['updated'];
+        $attempted_records = $stats['processed'] - $stats['skipped'];
+        $success_rate = ($attempted_records > 0) ? round(($successful_records / $attempted_records) * 100, 1) : 100;
+        
+        $import_data = array(
+            'user_id' => get_current_user_id(),
+            'import_date' => current_time('mysql'),
+            'file_name' => isset($_SESSION['aedc_importer']['file']['name']) ? basename($_SESSION['aedc_importer']['file']['name']) : '',
+            'table_name' => isset($_SESSION['aedc_importer']['target_table']) ? $_SESSION['aedc_importer']['target_table'] : '',
+            'total_rows' => isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : $stats['processed'],
+            'inserted' => isset($stats['inserted']) ? $stats['inserted'] : 0,
+            'updated' => isset($stats['updated']) ? $stats['updated'] : 0,
+            'skipped' => isset($stats['skipped']) ? $stats['skipped'] : 0,
+            'failed' => isset($stats['failed']) ? $stats['failed'] : 0,
+            'error_log' => $error_log,
+            'status' => ($stats['failed'] > 0) ? 'completed_with_errors' : 'completed',
+            'duration' => $duration,
+            'success_rate' => $success_rate
+        );
+
+        // Update session with final stats for completion page
+        $_SESSION['aedc_importer']['import_stats'] = array_merge($stats, array('duration' => $duration));
+        
+        // If there are errors, store them in session for the completion page
+        if (!empty($error_log)) {
+            $_SESSION['aedc_importer']['error_log'] = json_decode($error_log, true);
+        }
+        
+        $result = $wpdb->insert($wpdb->prefix . 'aedc_import_logs', $import_data);
+        
+        if ($result === false) {
+            error_log('AEDC Importer: Failed to save import log - ' . $wpdb->last_error);
+        }
+        
+        return $wpdb->insert_id;
+    }
+
+    /**
+     * Get all import logs
+     */
+    public function get_import_logs() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        
+        global $wpdb;
+        $logs = $wpdb->get_results("
+            SELECT l.*, u.display_name as user 
+            FROM {$wpdb->prefix}aedc_import_logs l 
+            LEFT JOIN {$wpdb->users} u ON l.user_id = u.ID 
+            ORDER BY import_date DESC
+        ");
+        
+        wp_send_json_success($logs);
+    }
+
+    /**
+     * Export failed rows as CSV
+     */
+    public function export_error_log() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        
+        if (!isset($_POST['log_id'])) {
+            wp_send_json_error('Missing log ID');
+            return;
+        }
+        
+        global $wpdb;
+        $log = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}aedc_import_logs WHERE id = %d",
+            $_POST['log_id']
+        ));
+        
+        if (!$log || empty($log->error_log)) {
+            wp_send_json_error('No error log found');
+            return;
+        }
+        
+        $error_data = json_decode($log->error_log, true);
+        if (empty($error_data)) {
+            wp_send_json_error('Invalid error log data');
+            return;
+        }
+        
+        // Format CSV content
+        $csv_content = "Row,Error Message\n";
+        foreach ($error_data as $error) {
+            $csv_content .= '"' . $error['row'] . '","' . addslashes($error['message']) . "\"\n";
+        }
+        
+        wp_send_json_success($csv_content);
+    }
+
+    /**
+     * Save import progress in session
+     */
+    public function save_import_progress() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        
+        if (!isset($_POST['stats']) || !isset($_POST['percentage'])) {
+            wp_send_json_error('Missing required data');
+            return;
+        }
+
+        // Store progress in session
+        $_SESSION['aedc_importer']['import_stats'] = $_POST['stats'];
+        $_SESSION['aedc_importer']['progress'] = $_POST['percentage'];
+        
+        wp_send_json_success();
+    }
+
+    /**
+     * Save import start time
+     */
+    public function save_import_start() {
+        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        $_SESSION['aedc_importer']['start_time'] = current_time('mysql');
         wp_send_json_success();
     }
 }

@@ -12,14 +12,17 @@ if (!defined('WPINC')) {
 }
 
 $import_stats = isset($_SESSION['aedc_importer']['import_stats']) ? $_SESSION['aedc_importer']['import_stats'] : array(
-    'total' => 0,
-    'success' => 0,
-    'errors' => 0,
+    'processed' => 0,
+    'inserted' => 0,
+    'updated' => 0,
     'skipped' => 0,
+    'failed' => 0,
+    'total_rows' => 0,
     'duration' => 0
 );
 
-$has_errors = !empty($_SESSION['aedc_importer']['error_log']);
+$duration = isset($import_stats['duration']) ? $import_stats['duration'] : 0;
+$has_errors = isset($import_stats['failed']) && $import_stats['failed'] > 0;
 ?>
 
 <div class="aedc-step-content step-completion">
@@ -34,27 +37,40 @@ $has_errors = !empty($_SESSION['aedc_importer']['error_log']);
 
             <div class="summary-stats">
                 <div class="stat-box total">
-                    <span class="stat-number"><?php echo esc_html($import_stats['total']); ?></span>
+                    <span class="stat-number"><?php echo esc_html($import_stats['processed']); ?></span>
                     <span class="stat-label"><?php esc_html_e('Total Records', 'aedc-importer'); ?></span>
                 </div>
                 <div class="stat-box success">
-                    <span class="stat-number"><?php echo esc_html($import_stats['success']); ?></span>
+                    <span class="stat-number"><?php echo esc_html($import_stats['inserted'] + $import_stats['updated']); ?></span>
                     <span class="stat-label"><?php esc_html_e('Successfully Imported', 'aedc-importer'); ?></span>
                 </div>
                 <div class="stat-box error">
-                    <span class="stat-number"><?php echo esc_html($import_stats['errors']); ?></span>
+                    <span class="stat-number"><?php echo esc_html($import_stats['failed']); ?></span>
                     <span class="stat-label"><?php esc_html_e('Failed', 'aedc-importer'); ?></span>
                 </div>
                 <div class="stat-box warning">
                     <span class="stat-number"><?php echo esc_html($import_stats['skipped']); ?></span>
                     <span class="stat-label"><?php esc_html_e('Skipped', 'aedc-importer'); ?></span>
                 </div>
+                <?php
+                // Calculate success rate
+                $success_rate = 0;
+                if ($import_stats['processed'] > 0) {
+                    $successful_records = $import_stats['inserted'] + $import_stats['updated'];
+                    $attempted_records = $import_stats['processed'] - $import_stats['skipped'];
+                    $success_rate = ($attempted_records > 0) ? round(($successful_records / $attempted_records) * 100, 1) : 100;
+                }
+                ?>
+                <div class="stat-box rate">
+                    <span class="stat-number"><?php echo esc_html($success_rate); ?>%</span>
+                    <span class="stat-label"><?php esc_html_e('Success Rate', 'aedc-importer'); ?></span>
+                </div>
             </div>
 
             <div class="summary-details">
                 <p>
                     <strong><?php esc_html_e('Import Duration:', 'aedc-importer'); ?></strong>
-                    <?php echo esc_html(human_time_diff(0, $import_stats['duration'])); ?>
+                    <?php echo esc_html(human_time_diff(0, $duration)); ?>
                 </p>
                 <p>
                     <strong><?php esc_html_e('Target Table:', 'aedc-importer'); ?></strong>
@@ -63,7 +79,7 @@ $has_errors = !empty($_SESSION['aedc_importer']['error_log']);
             </div>
         </div>
 
-        <?php if ($has_errors) : ?>
+        <?php if ($has_errors && isset($_SESSION['aedc_importer']['error_log'])) : ?>
             <div class="completion-errors">
                 <h3>
                     <span class="dashicons dashicons-warning"></span>
@@ -101,11 +117,9 @@ $has_errors = !empty($_SESSION['aedc_importer']['error_log']);
             <a href="<?php echo esc_url(remove_query_arg('step')); ?>" class="button button-primary">
                 <?php esc_html_e('Start New Import', 'aedc-importer'); ?>
             </a>
-            <?php if ($import_stats['success'] > 0) : ?>
-                <a href="<?php echo esc_url(admin_url('admin.php?page=aedc-importer&view=imported')); ?>" class="button button-secondary">
-                    <?php esc_html_e('View Imported Data', 'aedc-importer'); ?>
-                </a>
-            <?php endif; ?>
+            <a href="<?php echo esc_url(admin_url('admin.php?page=aedc-importer-logs')); ?>" class="button button-secondary">
+                <?php esc_html_e('View All Logs', 'aedc-importer'); ?>
+            </a>
         </div>
     </div>
 </div>
@@ -130,4 +144,4 @@ jQuery(document).ready(function($) {
         });
     });
 });
-</script> 
+</script>

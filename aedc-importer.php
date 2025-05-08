@@ -73,6 +73,12 @@ function aedc_importer_init_ajax() {
     add_action('wp_ajax_aedc_process_import_batch', array($processor, 'process_batch'));
     add_action('wp_ajax_aedc_save_import_options', array($mapping, 'save_import_options'));
     add_action('wp_ajax_aedc_cancel_import', array($processor, 'cancel_import'));
+    
+    // New log-related AJAX handlers
+    add_action('wp_ajax_aedc_get_import_logs', array($processor, 'get_import_logs'));
+    add_action('wp_ajax_aedc_export_error_log', array($processor, 'export_error_log'));
+    add_action('wp_ajax_aedc_save_import_progress', array($processor, 'save_import_progress'));
+    add_action('wp_ajax_aedc_save_import_start', array($processor, 'save_import_start'));
 }
 add_action('init', 'aedc_importer_init_ajax');
 
@@ -140,3 +146,33 @@ function aedc_importer_cleanup() {
         session_destroy();
     }
 }
+
+/**
+ * Create plugin tables on activation
+ */
+function aedc_importer_activate() {
+    global $wpdb;
+
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}aedc_import_logs (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NOT NULL,
+        import_date datetime NOT NULL,
+        file_name varchar(255) NOT NULL,
+        table_name varchar(255) NOT NULL,
+        total_rows int NOT NULL,
+        inserted int NOT NULL,
+        updated int NOT NULL,
+        skipped int NOT NULL,
+        failed int NOT NULL,
+        error_log longtext,
+        status varchar(50) NOT NULL,
+        duration int NOT NULL,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
+register_activation_hook(__FILE__, 'aedc_importer_activate');

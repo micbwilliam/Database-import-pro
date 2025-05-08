@@ -173,22 +173,35 @@ jQuery(document).ready(function($) {
     }
 
     function updateProgress(stats) {
-        const percentage = Math.round((stats.processed / totalRecords) * 100);
+        // Calculate total processed including current batch
+        const totalProcessed = totalStats.processed + stats.processed;
+        const percentage = Math.round((totalProcessed / totalRecords) * 100);
         
+        // Update progress bar
         $('.progress-bar-fill').css('width', percentage + '%');
         $('.progress-text').text(percentage + '%');
         
+        // Update total stats
         totalStats.processed += stats.processed;
         totalStats.inserted += stats.inserted;
         totalStats.updated += stats.updated;
         totalStats.skipped += stats.skipped;
         totalStats.failed += stats.failed;
         
+        // Update counters
         $('#processed-count').text(totalStats.processed);
         $('#inserted-count').text(totalStats.inserted);
         $('#updated-count').text(totalStats.updated);
         $('#skipped-count').text(totalStats.skipped);
         $('#failed-count').text(totalStats.failed);
+
+        // Store progress in session via AJAX
+        $.post(ajaxurl, {
+            action: 'aedc_save_import_progress',
+            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>',
+            stats: totalStats,
+            percentage: percentage
+        });
     }
 
     function addLogEntry(message, type = 'info') {
@@ -211,7 +224,19 @@ jQuery(document).ready(function($) {
     }
 
     // Start the import process
-    processBatch();
+    function startImport() {
+        // Store start time for duration tracking
+        $.post(ajaxurl, {
+            action: 'aedc_save_import_start',
+            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>'
+        }, function() {
+            processBatch();
+        });
+    }
+
+    // Initialize UI and start import
+    $('#pause-import').show();
+    startImport();
 
     // Handle pause/resume
     $('#pause-import').on('click', function() {
