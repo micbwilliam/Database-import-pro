@@ -29,7 +29,7 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                 </li>
                 <li>
                     <strong><?php esc_html_e('Total Records:', 'aedc-importer'); ?></strong>
-                    <?php echo esc_html(count($preview_data)); ?>
+                    <?php echo esc_html(isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : 0); ?>
                 </li>
                 <li>
                     <strong><?php esc_html_e('Mapped Fields:', 'aedc-importer'); ?></strong>
@@ -60,6 +60,68 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                                 <?php foreach ($mapping as $column => $map) : ?>
                                     <td><?php echo esc_html($row[$column] ?? ''); ?></td>
                                 <?php endforeach; ?>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="preview-validation">
+            <h3><?php esc_html_e('Data Validation', 'aedc-importer'); ?></h3>
+            <div class="validation-summary">
+                <div class="validation-errors"></div>
+                <div class="validation-warnings"></div>
+            </div>
+            <div class="preview-table-container">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Column', 'aedc-importer'); ?></th>
+                            <th><?php esc_html_e('Sample Data', 'aedc-importer'); ?></th>
+                            <th><?php esc_html_e('Expected Type', 'aedc-importer'); ?></th>
+                            <th><?php esc_html_e('Status', 'aedc-importer'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        global $wpdb;
+                        $table = $_SESSION['aedc_importer']['target_table'];
+                        $columns = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`");
+                        foreach ($columns as $column) :
+                            $mapped_field = $mapping[$column->Field]['csv_field'] ?? '';
+                            $sample_data = '';
+                            if (!empty($preview_data)) {
+                                $sample_data = $preview_data[0][$column->Field] ?? '';
+                            }
+                            $is_required = $column->Null === 'NO' && $column->Default === null;
+                            $type_class = '';
+                            $status_message = '';
+                            
+                            // Validate data type
+                            if (!empty($sample_data)) {
+                                $valid = validate_field_type($sample_data, $column->Type);
+                                $type_class = $valid ? 'valid' : 'invalid';
+                                $status_message = $valid ? __('Valid', 'aedc-importer') : __('Invalid Type', 'aedc-importer');
+                            } elseif ($is_required) {
+                                $type_class = 'required';
+                                $status_message = __('Required Field', 'aedc-importer');
+                            }
+                        ?>
+                            <tr class="<?php echo esc_attr($type_class); ?>">
+                                <td>
+                                    <?php echo esc_html($column->Field); ?>
+                                    <?php if ($is_required) : ?>
+                                        <span class="required-marker">*</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?php echo esc_html($sample_data); ?></td>
+                                <td><?php echo esc_html($column->Type); ?></td>
+                                <td class="status-column">
+                                    <span class="status-badge <?php echo esc_attr($type_class); ?>">
+                                        <?php echo esc_html($status_message); ?>
+                                    </span>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -112,6 +174,48 @@ jQuery(document).ready(function($) {
         }
     });
 
+    // Initialize validation summary
+    function updateValidationSummary() {
+        const errors = [];
+        const warnings = [];
+        
+        $('.preview-table tbody tr').each(function() {
+            const $row = $(this);
+            const columnName = $row.find('td:first').text().trim();
+            const status = $row.attr('class');
+            
+            if (status === 'invalid') {
+                errors.push(columnName + ': ' + $row.find('.status-badge').text());
+            } else if (status === 'required' && !$row.find('td:nth-child(2)').text().trim()) {
+                warnings.push(columnName + ' is required but not mapped');
+            }
+        });
+
+        const $errorContainer = $('.validation-errors');
+        const $warningContainer = $('.validation-warnings');
+        
+        $errorContainer.empty();
+        $warningContainer.empty();
+        
+        if (errors.length) {
+            $errorContainer.append('<h4 class="error-title">' + 
+                '<?php esc_html_e('Validation Errors', 'aedc-importer'); ?>' + '</h4>');
+            $errorContainer.append('<ul><li>' + errors.join('</li><li>') + '</li></ul>');
+        }
+        
+        if (warnings.length) {
+            $warningContainer.append('<h4 class="warning-title">' + 
+                '<?php esc_html_e('Warnings', 'aedc-importer'); ?>' + '</h4>');
+            $warningContainer.append('<ul><li>' + warnings.join('</li><li>') + '</li></ul>');
+        }
+
+        // Enable/disable import button based on validation
+        $('#start-import').prop('disabled', errors.length > 0);
+    }
+
+    // Run validation on page load
+    updateValidationSummary();
+
     // Handle form submission
     $('#aedc-preview-form').on('submit', function(e) {
         e.preventDefault();
@@ -135,4 +239,119 @@ jQuery(document).ready(function($) {
         });
     });
 });
-</script> 
+
+// Add helper function for data type validation
+<?php
+function validate_field_type($value, $db_type) {
+    // Extract base type and length/values
+    if (preg_match('/^([a-z]+)(\(([^)]+)\))?/', strtolower($db_type), $matches)) {
+        $type = $matches[1];
+        $constraint = $matches[3] ?? '';
+        
+        switch ($type) {
+            case 'int':
+            case 'tinyint':
+            case 'smallint':
+            case 'mediumint':
+            case 'bigint':
+                return is_numeric($value) && strpos($value, '.') === false;
+            
+            case 'decimal':
+            case 'float':
+            case 'double':
+                return is_numeric($value);
+            
+            case 'date':
+                return strtotime($value) !== false;
+            
+            case 'datetime':
+            case 'timestamp':
+                return strtotime($value) !== false;
+            
+            case 'time':
+                return preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/', $value);
+            
+            case 'year':
+                return is_numeric($value) && strlen($value) === 4;
+            
+            case 'char':
+            case 'varchar':
+                $max_length = (int)$constraint;
+                return strlen($value) <= $max_length;
+            
+            case 'enum':
+            case 'set':
+                $allowed_values = array_map('trim', explode(',', str_replace("'", '', $constraint)));
+                return in_array($value, $allowed_values);
+            
+            // Text types don't need validation
+            case 'text':
+            case 'tinytext':
+            case 'mediumtext':
+            case 'longtext':
+                return true;
+            
+            default:
+                return true;
+        }
+    }
+    return true;
+}
+?>
+</script>
+
+<style>
+.validation-summary {
+    margin: 20px 0;
+}
+
+.validation-errors, .validation-warnings {
+    margin: 10px 0;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.validation-errors {
+    background-color: #fbeaea;
+    border-left: 4px solid #dc3232;
+}
+
+.validation-warnings {
+    background-color: #fff8e5;
+    border-left: 4px solid #ffb900;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.status-badge.valid {
+    background-color: #edfaef;
+    color: #46b450;
+}
+
+.status-badge.invalid {
+    background-color: #fbeaea;
+    color: #dc3232;
+}
+
+.status-badge.required {
+    background-color: #fff8e5;
+    color: #ffb900;
+}
+
+.required-marker {
+    color: #dc3232;
+    margin-left: 3px;
+}
+
+tr.invalid {
+    background-color: #fff5f5;
+}
+
+tr.required:not(.valid) {
+    background-color: #fff8f5;
+}
+</style>

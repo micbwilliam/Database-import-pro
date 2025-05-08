@@ -51,6 +51,16 @@ function aedc_importer_init_ajax() {
     // Register AJAX actions
     add_action('wp_ajax_aedc_upload_file', array($uploader, 'handle_upload'));
     add_action('wp_ajax_aedc_get_headers', array($uploader, 'get_file_headers'));
+    add_action('wp_ajax_aedc_store_headers', array($uploader, 'store_headers'));
+    add_action('wp_ajax_aedc_get_table_structure', array($table, 'get_table_structure'));
+    add_action('wp_ajax_aedc_save_target_table', array($table, 'save_target_table'));
+    add_action('wp_ajax_aedc_save_field_mapping', array($mapping, 'save_field_mapping'));
+    add_action('wp_ajax_aedc_validate_import_data', array($mapping, 'validate_import_data'));
+    add_action('wp_ajax_aedc_save_mapping_template', array($mapping, 'save_template'));
+    add_action('wp_ajax_aedc_load_mapping_template', array($mapping, 'load_template'));
+    add_action('wp_ajax_aedc_get_mapping_templates', array($mapping, 'get_templates'));
+    add_action('wp_ajax_aedc_delete_mapping_template', array($mapping, 'delete_template'));
+    add_action('wp_ajax_aedc_auto_suggest_mapping', array($mapping, 'auto_suggest_mapping'));
 }
 add_action('init', 'aedc_importer_init_ajax');
 
@@ -95,4 +105,4 @@ function aedc_importer_cleanup() {
     if (session_id()) {
         session_destroy();
     }
-} 
+}
