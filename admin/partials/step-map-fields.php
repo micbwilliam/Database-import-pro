@@ -3,7 +3,7 @@
  * Step 3: Field Mapping Template
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    dbip_Importer
  */
 
 // If this file is called directly, abort.
@@ -13,33 +13,33 @@ if (!defined('WPINC')) {
 
 // Get the selected table structure
 global $wpdb;
-$table = isset($_SESSION['aedc_importer']['target_table']) ? $_SESSION['aedc_importer']['target_table'] : '';
+$table = isset($_SESSION['dbip_importer']['target_table']) ? $_SESSION['dbip_importer']['target_table'] : '';
 $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table}");
 
 // Get CSV headers from the uploaded file
-$csv_headers = isset($_SESSION['aedc_importer']['headers']) ? $_SESSION['aedc_importer']['headers'] : array();
+$csv_headers = isset($_SESSION['dbip_importer']['headers']) ? $_SESSION['dbip_importer']['headers'] : array();
 
 // Add debug output
 if (empty($csv_headers)) {
-    error_log('AEDC Importer Debug: CSV headers are empty. Session data: ' . print_r($_SESSION['aedc_importer'], true));
+    error_log('Database Import Pro Debug: CSV headers are empty. Session data: ' . print_r($_SESSION['dbip_importer'], true));
 }
 ?>
 
-<div class="aedc-step-content step-map-fields">
-    <h2><?php esc_html_e('Map CSV Fields to Database Columns', 'aedc-importer'); ?></h2>
+<div class="dbip-step-content step-map-fields">
+    <h2><?php esc_html_e('Map CSV Fields to Database Columns', 'database-import-pro'); ?></h2>
     
     <div class="mapping-container">
-        <form id="aedc-mapping-form" method="post">
-            <?php wp_nonce_field('aedc_importer_nonce', 'aedc_nonce'); ?>
+        <form id="dbip-mapping-form" method="post">
+            <?php wp_nonce_field('dbip_importer_nonce', 'dbip_nonce'); ?>
             
             <div class="mapping-table-container">
                 <table class="mapping-table">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e('Database Column', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('CSV Field', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('Default Value', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('Transform', 'aedc-importer'); ?></th>
+                            <th><?php esc_html_e('Database Column', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('CSV Field', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('Default Value', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('Transform', 'database-import-pro'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,22 +49,22 @@ if (empty($csv_headers)) {
                                     <strong><?php echo esc_html($column->Field); ?></strong>
                                     <span class="column-type"><?php echo esc_html($column->Type); ?></span>
                                     <?php if ($column->Null === 'YES') : ?>
-                                        <span class="column-nullable">(<?php esc_html_e('nullable', 'aedc-importer'); ?>)</span>
+                                        <span class="column-nullable">(<?php esc_html_e('nullable', 'database-import-pro'); ?>)</span>
                                     <?php endif; ?>
                                     <?php if (strpos($column->Extra, 'auto_increment') !== false) : ?>
-                                        <span class="column-auto-increment">(<?php esc_html_e('auto-increment', 'aedc-importer'); ?>)</span>
+                                        <span class="column-auto-increment">(<?php esc_html_e('auto-increment', 'database-import-pro'); ?>)</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (strpos($column->Extra, 'auto_increment') !== false) : ?>
                                         <div class="auto-increment-notice">
-                                            <?php esc_html_e('Auto-increment field - no mapping needed', 'aedc-importer'); ?>
+                                            <?php esc_html_e('Auto-increment field - no mapping needed', 'database-import-pro'); ?>
                                             <input type="hidden" name="mapping[<?php echo esc_attr($column->Field); ?>][skip]" value="1" />
                                         </div>
                                     <?php else : ?>
                                         <select name="mapping[<?php echo esc_attr($column->Field); ?>][csv_field]" class="csv-field-select">
-                                            <option value=""><?php esc_html_e('-- Select CSV Field --', 'aedc-importer'); ?></option>
-                                            <option value="__keep_current__"><?php esc_html_e('Keep Current Data', 'aedc-importer'); ?></option>
+                                            <option value=""><?php esc_html_e('-- Select CSV Field --', 'database-import-pro'); ?></option>
+                                            <option value="__keep_current__"><?php esc_html_e('Keep Current Data', 'database-import-pro'); ?></option>
                                             <?php foreach ($csv_headers as $header) : ?>
                                                 <option value="<?php echo esc_attr($header); ?>"><?php echo esc_html($header); ?></option>
                                             <?php endforeach; ?>
@@ -74,7 +74,7 @@ if (empty($csv_headers)) {
                                                 <input type="checkbox" 
                                                        name="mapping[<?php echo esc_attr($column->Field); ?>][allow_null]" 
                                                        value="1" />
-                                                <?php esc_html_e('Allow NULL', 'aedc-importer'); ?>
+                                                <?php esc_html_e('Allow NULL', 'database-import-pro'); ?>
                                             </label>
                                         <?php endif; ?>
                                     <?php endif; ?>
@@ -84,22 +84,22 @@ if (empty($csv_headers)) {
                                         <input type="text" 
                                                name="mapping[<?php echo esc_attr($column->Field); ?>][default_value]" 
                                                class="default-value" 
-                                               placeholder="<?php esc_attr_e('Leave empty for no default', 'aedc-importer'); ?>" />
+                                               placeholder="<?php esc_attr_e('Leave empty for no default', 'database-import-pro'); ?>" />
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (strpos($column->Extra, 'auto_increment') === false) : ?>
                                         <select name="mapping[<?php echo esc_attr($column->Field); ?>][transform]" class="transform-select">
-                                            <option value=""><?php esc_html_e('No transformation', 'aedc-importer'); ?></option>
-                                            <option value="trim"><?php esc_html_e('Trim whitespace', 'aedc-importer'); ?></option>
-                                            <option value="uppercase"><?php esc_html_e('UPPERCASE', 'aedc-importer'); ?></option>
-                                            <option value="lowercase"><?php esc_html_e('lowercase', 'aedc-importer'); ?></option>
-                                            <option value="capitalize"><?php esc_html_e('Capitalize Words', 'aedc-importer'); ?></option>
-                                            <option value="custom"><?php esc_html_e('Custom PHP', 'aedc-importer'); ?></option>
+                                            <option value=""><?php esc_html_e('No transformation', 'database-import-pro'); ?></option>
+                                            <option value="trim"><?php esc_html_e('Trim whitespace', 'database-import-pro'); ?></option>
+                                            <option value="uppercase"><?php esc_html_e('UPPERCASE', 'database-import-pro'); ?></option>
+                                            <option value="lowercase"><?php esc_html_e('lowercase', 'database-import-pro'); ?></option>
+                                            <option value="capitalize"><?php esc_html_e('Capitalize Words', 'database-import-pro'); ?></option>
+                                            <option value="custom"><?php esc_html_e('Custom PHP', 'database-import-pro'); ?></option>
                                         </select>
                                         <div class="custom-transform" style="display: none;">
                                             <textarea name="mapping[<?php echo esc_attr($column->Field); ?>][custom_transform]" 
-                                                      placeholder="<?php esc_attr_e('Enter PHP code. Use $value for the field value.', 'aedc-importer'); ?>"
+                                                      placeholder="<?php esc_attr_e('Enter PHP code. Use $value for the field value.', 'database-import-pro'); ?>"
                                                       rows="3"></textarea>
                                         </div>
                                     <?php endif; ?>
@@ -113,27 +113,27 @@ if (empty($csv_headers)) {
             <div class="mapping-actions">
                 <div class="template-controls">
                     <select id="load-template" class="template-select">
-                        <option value=""><?php esc_html_e('Load Saved Template', 'aedc-importer'); ?></option>
+                        <option value=""><?php esc_html_e('Load Saved Template', 'database-import-pro'); ?></option>
                     </select>
-                    <input type="text" id="template-name" placeholder="<?php esc_attr_e('Template Name', 'aedc-importer'); ?>" />
-                    <button type="button" class="button button-secondary" id="save-template"><?php esc_html_e('Save as Template', 'aedc-importer'); ?></button>
-                    <button type="button" class="button button-secondary" id="delete-template"><?php esc_html_e('Delete Template', 'aedc-importer'); ?></button>
+                    <input type="text" id="template-name" placeholder="<?php esc_attr_e('Template Name', 'database-import-pro'); ?>" />
+                    <button type="button" class="button button-secondary" id="save-template"><?php esc_html_e('Save as Template', 'database-import-pro'); ?></button>
+                    <button type="button" class="button button-secondary" id="delete-template"><?php esc_html_e('Delete Template', 'database-import-pro'); ?></button>
                 </div>
                 <div class="action-buttons">
-                    <button type="button" class="button button-secondary" id="auto-map"><?php esc_html_e('Auto-Map Fields', 'aedc-importer'); ?></button>
-                    <button type="submit" class="button button-primary" id="mapping-submit"><?php esc_html_e('Save Mapping & Continue', 'aedc-importer'); ?></button>
+                    <button type="button" class="button button-secondary" id="auto-map"><?php esc_html_e('Auto-Map Fields', 'database-import-pro'); ?></button>
+                    <button type="submit" class="button button-primary" id="mapping-submit"><?php esc_html_e('Save Mapping & Continue', 'database-import-pro'); ?></button>
                 </div>
             </div>
         </form>
     </div>
 
     <div class="mapping-help">
-        <h3><?php esc_html_e('Mapping Instructions', 'aedc-importer'); ?></h3>
+        <h3><?php esc_html_e('Mapping Instructions', 'database-import-pro'); ?></h3>
         <ul>
-            <li><?php esc_html_e('Match each database column with the corresponding CSV field.', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('Set default values for columns that don\'t have a CSV field mapped.', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('Apply transformations to clean or format the data during import.', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('Use the Auto-Map feature to automatically match fields with similar names.', 'aedc-importer'); ?></li>
+            <li><?php esc_html_e('Match each database column with the corresponding CSV field.', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('Set default values for columns that don\'t have a CSV field mapped.', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('Apply transformations to clean or format the data during import.', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('Use the Auto-Map feature to automatically match fields with similar names.', 'database-import-pro'); ?></li>
         </ul>
     </div>
 </div>
@@ -157,7 +157,7 @@ jQuery(document).ready(function($) {
     $('#save-template').on('click', function() {
         const templateName = $('#template-name').val().trim();
         if (!templateName) {
-            alert('<?php esc_html_e('Please enter a template name', 'aedc-importer'); ?>');
+            alert('<?php esc_html_e('Please enter a template name', 'database-import-pro'); ?>');
             return;
         }
 
@@ -165,11 +165,11 @@ jQuery(document).ready(function($) {
         console.log('Saving template with data:', mappingData); // Debug log
         
         $.ajax({
-            url: ajaxurl,
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: {
-                action: 'aedc_save_mapping_template',
-                nonce: $('#aedc_nonce').val(),
+                action: 'dbip_save_mapping_template',
+                nonce: $('#dbip_nonce').val(),
                 template_name: templateName,
                 mapping_data: JSON.stringify(mappingData),
                 table_name: '<?php echo esc_js($table); ?>'
@@ -177,16 +177,16 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 console.log('Template save response:', response); // Debug log
                 if (response.success) {
-                    alert('<?php esc_html_e('Template saved successfully', 'aedc-importer'); ?>');
+                    alert('<?php esc_html_e('Template saved successfully', 'database-import-pro'); ?>');
                     loadTemplates();
                     $('#template-name').val('');
                 } else {
-                    alert(response.data || '<?php esc_html_e('Failed to save template', 'aedc-importer'); ?>');
+                    alert(response.data || '<?php esc_html_e('Failed to save template', 'database-import-pro'); ?>');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Template save error:', {xhr, status, error}); // Debug log
-                alert('<?php esc_html_e('Failed to save template. Please try again.', 'aedc-importer'); ?>');
+                alert('<?php esc_html_e('Failed to save template. Please try again.', 'database-import-pro'); ?>');
             }
         });
     });
@@ -195,15 +195,15 @@ jQuery(document).ready(function($) {
         const templateName = $(this).val();
         if (!templateName) return;
 
-        $.post(ajaxurl, {
-            action: 'aedc_load_mapping_template',
-            nonce: $('#aedc_nonce').val(),
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_load_mapping_template',
+            nonce: $('#dbip_nonce').val(),
             template_name: templateName
         }, function(response) {
             if (response.success) {
                 applyTemplate(response.data.mapping);
             } else {
-                alert(response.data || '<?php esc_html_e('Failed to load template', 'aedc-importer'); ?>');
+                alert(response.data || '<?php esc_html_e('Failed to load template', 'database-import-pro'); ?>');
             }
         });
     });
@@ -211,24 +211,24 @@ jQuery(document).ready(function($) {
     $('#delete-template').on('click', function() {
         const templateName = $('#load-template').val();
         if (!templateName) {
-            alert('<?php esc_html_e('Please select a template to delete', 'aedc-importer'); ?>');
+            alert('<?php esc_html_e('Please select a template to delete', 'database-import-pro'); ?>');
             return;
         }
 
-        if (!confirm('<?php esc_html_e('Are you sure you want to delete this template?', 'aedc-importer'); ?>')) {
+        if (!confirm('<?php esc_html_e('Are you sure you want to delete this template?', 'database-import-pro'); ?>')) {
             return;
         }
 
-        $.post(ajaxurl, {
-            action: 'aedc_delete_mapping_template',
-            nonce: $('#aedc_nonce').val(),
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_delete_mapping_template',
+            nonce: $('#dbip_nonce').val(),
             template_name: templateName
         }, function(response) {
             if (response.success) {
-                alert('<?php esc_html_e('Template deleted successfully', 'aedc-importer'); ?>');
+                alert('<?php esc_html_e('Template deleted successfully', 'database-import-pro'); ?>');
                 loadTemplates();
             } else {
-                alert(response.data || '<?php esc_html_e('Failed to delete template', 'aedc-importer'); ?>');
+                alert(response.data || '<?php esc_html_e('Failed to delete template', 'database-import-pro'); ?>');
             }
         });
     });
@@ -250,22 +250,22 @@ jQuery(document).ready(function($) {
         });
 
         // Get suggestions from server
-        $.post(ajaxurl, {
-            action: 'aedc_auto_suggest_mapping',
-            nonce: $('#aedc_nonce').val(),
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_auto_suggest_mapping',
+            nonce: $('#dbip_nonce').val(),
             db_columns: JSON.stringify(dbColumns),
             csv_headers: JSON.stringify(csvHeaders)
         }, function(response) {
             if (response.success) {
                 applyAutoMapping(response.data);
             } else {
-                alert(response.data || '<?php esc_html_e('Failed to generate mapping suggestions', 'aedc-importer'); ?>');
+                alert(response.data || '<?php esc_html_e('Failed to generate mapping suggestions', 'database-import-pro'); ?>');
             }
         });
     });
 
     // Form submission with validation
-    $('#aedc-mapping-form').on('submit', function(e) {
+    $('#dbip-mapping-form').on('submit', function(e) {
         e.preventDefault();
         
         const mappingData = collectMappingData();
@@ -279,14 +279,14 @@ jQuery(document).ready(function($) {
 
         // Show loading state
         const submitButton = $('#mapping-submit');
-        submitButton.prop('disabled', true).text('<?php esc_html_e('Saving...', 'aedc-importer'); ?>');
+        submitButton.prop('disabled', true).text('<?php esc_html_e('Saving...', 'database-import-pro'); ?>');
 
         $.ajax({
-            url: ajaxurl,
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: {
-                action: 'aedc_save_field_mapping',
-                nonce: $('#aedc_nonce').val(),
+                action: 'dbip_save_field_mapping',
+                nonce: $('#dbip_nonce').val(),
                 mapping: JSON.stringify(mappingData)
             },
             success: function(response) {
@@ -294,14 +294,14 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     window.location.href = window.location.href.replace(/step=\d/, 'step=4');
                 } else {
-                    alert(response.data || '<?php esc_html_e('Failed to save mapping', 'aedc-importer'); ?>');
-                    submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'aedc-importer'); ?>');
+                    alert(response.data || '<?php esc_html_e('Failed to save mapping', 'database-import-pro'); ?>');
+                    submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'database-import-pro'); ?>');
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Save mapping error:', {xhr, status, error}); // Debug log
-                alert('<?php esc_html_e('Failed to save mapping. Please try again.', 'aedc-importer'); ?>');
-                submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'aedc-importer'); ?>');
+                alert('<?php esc_html_e('Failed to save mapping. Please try again.', 'database-import-pro'); ?>');
+                submitButton.prop('disabled', false).text('<?php esc_html_e('Save Mapping & Continue', 'database-import-pro'); ?>');
             }
         });
     });
@@ -311,11 +311,11 @@ jQuery(document).ready(function($) {
         console.log('Loading templates...'); // Debug log
         
         $.ajax({
-            url: ajaxurl,
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: {
-                action: 'aedc_get_mapping_templates',
-                nonce: $('#aedc_nonce').val()
+                action: 'dbip_get_mapping_templates',
+                nonce: $('#dbip_nonce').val()
             },
             success: function(response) {
                 console.log('Load templates response:', response); // Debug log
@@ -428,14 +428,14 @@ jQuery(document).ready(function($) {
         if (!hasMapping) {
             return {
                 isValid: false,
-                message: '<?php esc_html_e('Please map at least one field', 'aedc-importer'); ?>'
+                message: '<?php esc_html_e('Please map at least one field', 'database-import-pro'); ?>'
             };
         }
 
         if (requiredColumns.length > 0) {
             return {
                 isValid: false,
-                message: '<?php esc_html_e('The following required columns are not mapped: ', 'aedc-importer'); ?>' + 
+                message: '<?php esc_html_e('The following required columns are not mapped: ', 'database-import-pro'); ?>' + 
                         requiredColumns.join(', ')
             };
         }

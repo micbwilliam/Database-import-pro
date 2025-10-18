@@ -3,10 +3,10 @@
  * The admin-specific functionality of the plugin.
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    DBIP_Importer
  */
 
-class AEDC_Importer_Admin {
+class DBIP_Importer_Admin {
 
     /**
      * The current step of the wizard
@@ -31,12 +31,12 @@ class AEDC_Importer_Admin {
      */
     public function enqueue_styles() {
         $screen = get_current_screen();
-        if (strpos($screen->id, 'aedc-importer') !== false) {
+        if (strpos($screen->id, 'dbip-importer') !== false) {
             wp_enqueue_style(
-                'aedc-importer-admin',
-                AEDC_IMPORTER_PLUGIN_URL . 'assets/css/aedc-importer-admin.css',
+                'dbip-importer-admin',
+                DBIP_IMPORTER_PLUGIN_URL . 'assets/css/dbip-importer-admin.css',
                 array(),
-                AEDC_IMPORTER_VERSION
+                DBIP_IMPORTER_VERSION
             );
         }
     }
@@ -48,18 +48,18 @@ class AEDC_Importer_Admin {
      */
     public function enqueue_scripts() {
         $screen = get_current_screen();
-        if (strpos($screen->id, 'aedc-importer') !== false) {
+        if (strpos($screen->id, 'dbip-importer') !== false) {
             wp_enqueue_script(
-                'aedc-importer-admin',
-                AEDC_IMPORTER_PLUGIN_URL . 'assets/js/aedc-importer-admin.js',
+                'dbip-importer-admin',
+                DBIP_IMPORTER_PLUGIN_URL . 'assets/js/dbip-importer-admin.js',
                 array('jquery'),
-                AEDC_IMPORTER_VERSION,
+                DBIP_IMPORTER_VERSION,
                 true
             );
 
-            wp_localize_script('aedc-importer-admin', 'aedcImporter', array(
+            wp_localize_script('dbip-importer-admin', 'dbipImporter', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('aedc_importer_nonce')
+                'nonce' => wp_create_nonce('dbip_importer_nonce')
             ));
         }
     }
@@ -71,10 +71,10 @@ class AEDC_Importer_Admin {
      */
     public function add_plugin_admin_menu() {
         add_menu_page(
-            'AEDC - Importer',
-            'AEDC - Importer',
+            'Database Import Pro',
+            'Database Import Pro',
             'manage_options',
-            'aedc-importer',
+            'dbip-importer',
             array($this, 'display_plugin_admin_page'),
             'dashicons-upload',
             30
@@ -82,11 +82,11 @@ class AEDC_Importer_Admin {
 
         // Add logs submenu
         add_submenu_page(
-            'aedc-importer',
-            __('Import Logs', 'aedc-importer'),
-            __('Import Logs', 'aedc-importer'),
+            'dbip-importer',
+            __('Import Logs', 'database-import-pro'),
+            __('Import Logs', 'database-import-pro'),
             'manage_options',
-            'aedc-importer-logs',
+            'dbip-importer-logs',
             array($this, 'display_logs_page')
         );
     }
@@ -100,9 +100,9 @@ class AEDC_Importer_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
         
         // AJAX handlers
-        add_action('wp_ajax_aedc_upload_csv', array($this, 'handle_csv_upload'));
-        add_action('wp_ajax_aedc_save_mapping', array($this, 'save_field_mapping'));
-        add_action('wp_ajax_aedc_process_import', array($this, 'process_import'));
+        add_action('wp_ajax_dbip_upload_csv', array($this, 'handle_csv_upload'));
+        add_action('wp_ajax_dbip_save_mapping', array($this, 'save_field_mapping'));
+        add_action('wp_ajax_dbip_process_import', array($this, 'process_import'));
     }
 
     /**
@@ -111,7 +111,7 @@ class AEDC_Importer_Admin {
      * @since    1.0.0
      */
     public function display_plugin_admin_page() {
-        include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/aedc-importer-admin-display.php';
+        include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/dbip-importer-admin-display.php';
     }
 
     /**
@@ -120,14 +120,14 @@ class AEDC_Importer_Admin {
      * @since    1.0.0
      */
     public function display_logs_page() {
-        include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/view-logs.php';
+        include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/view-logs.php';
     }
 
     /**
      * Handle CSV file upload
      */
     public function handle_csv_upload() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized access');
@@ -141,7 +141,7 @@ class AEDC_Importer_Admin {
      * Save field mapping
      */
     public function save_field_mapping() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized access');
@@ -155,7 +155,7 @@ class AEDC_Importer_Admin {
      * Process the import
      */
     public function process_import() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized access');

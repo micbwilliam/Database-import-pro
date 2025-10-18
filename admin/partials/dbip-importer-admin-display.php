@@ -3,7 +3,7 @@
  * Provide a admin area view for the plugin
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    dbip_Importer
  */
 
 // If this file is called directly, abort.
@@ -15,9 +15,9 @@ if (!defined('WPINC')) {
 <div class="wrap">
     <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
     
-    <div class="aedc-importer-wizard">
+    <div class="database-import-pro-wizard">
         <!-- Progress Bar -->
-        <div class="aedc-wizard-steps">
+        <div class="dbip-wizard-steps">
             <?php
             $steps = array(
                 1 => 'Upload CSV',
@@ -42,39 +42,39 @@ if (!defined('WPINC')) {
         </div>
 
         <!-- Step Content -->
-        <div class="aedc-wizard-content">
+        <div class="dbip-wizard-content">
             <?php
             switch ($this->current_step) {
                 case 1:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-upload.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-upload.php';
                     break;
                 case 2:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-select-table.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-select-table.php';
                     break;
                 case 3:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-map-fields.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-map-fields.php';
                     break;
                 case 4:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-preview.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-preview.php';
                     break;
                 case 5:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-import.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-import.php';
                     break;
                 case 6:
-                    include_once AEDC_IMPORTER_PLUGIN_DIR . 'admin/partials/step-completion.php';
+                    include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/step-completion.php';
                     break;
             }
             ?>
         </div>
 
         <!-- Navigation Buttons -->
-        <div class="aedc-wizard-navigation">
+        <div class="dbip-wizard-navigation">
             <?php if ($this->current_step > 1) : ?>
-                <a href="<?php echo esc_url(add_query_arg('step', $this->current_step - 1)); ?>" class="button button-secondary"><?php esc_html_e('Previous', 'aedc-importer'); ?></a>
+                <a href="<?php echo esc_url(add_query_arg('step', $this->current_step - 1)); ?>" class="button button-secondary"><?php esc_html_e('Previous', 'database-import-pro'); ?></a>
             <?php endif; ?>
 
             <?php if ($this->current_step < 6) : ?>
-                <a href="<?php echo esc_url(add_query_arg('step', $this->current_step + 1)); ?>" class="button button-primary"><?php esc_html_e('Next', 'aedc-importer'); ?></a>
+                <a href="<?php echo esc_url(add_query_arg('step', $this->current_step + 1)); ?>" class="button button-primary"><?php esc_html_e('Next', 'database-import-pro'); ?></a>
             <?php endif; ?>
         </div>
     </div>

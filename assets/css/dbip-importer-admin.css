@@ -1,6 +1,6 @@
-/* Admin Styles for AEDC Importer */
+/* Admin Styles for Database Import Pro */
 
-.aedc-importer-wizard {
+.dbip-importer-wizard {
     margin: 20px 0;
     background: #fff;
     padding: 20px;
@@ -9,7 +9,7 @@
 }
 
 /* Wizard Steps */
-.aedc-wizard-steps {
+.dbip-wizard-steps {
     display: flex;
     justify-content: space-between;
     margin-bottom: 30px;
@@ -17,7 +17,7 @@
     padding: 0 20px;
 }
 
-.aedc-wizard-steps::before {
+.dbip-wizard-steps::before {
     content: '';
     position: absolute;
     top: 25px;
@@ -225,7 +225,7 @@
 }
 
 /* Navigation */
-.aedc-wizard-navigation {
+.dbip-wizard-navigation {
     margin-top: 30px;
     padding-top: 20px;
     border-top: 1px solid #e5e5e5;
@@ -961,12 +961,12 @@
 
 /* Responsive Styles */
 @media screen and (max-width: 782px) {
-    .aedc-wizard-steps {
+    .dbip-wizard-steps {
         flex-direction: column;
         padding: 0;
     }
 
-    .aedc-wizard-steps::before {
+    .dbip-wizard-steps::before {
         display: none;
     }
 

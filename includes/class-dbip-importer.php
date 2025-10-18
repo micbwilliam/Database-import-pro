@@ -3,10 +3,10 @@
  * The core plugin class.
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    DBIP_Importer
  */
 
-class AEDC_Importer {
+class DBIP_Importer {
 
     /**
      * The loader that's responsible for maintaining and registering all hooks that power
@@ -14,7 +14,7 @@ class AEDC_Importer {
      *
      * @since    1.0.0
      * @access   protected
-     * @var      AEDC_Importer_Admin    $admin    Maintains and registers all hooks for the admin area.
+     * @var      DBIP_Importer_Admin    $admin    Maintains and registers all hooks for the admin area.
      */
     protected $admin;
 
@@ -25,7 +25,7 @@ class AEDC_Importer {
      */
     public function __construct() {
         if (is_admin()) {
-            $this->admin = new AEDC_Importer_Admin();
+            $this->admin = new DBIP_Importer_Admin();
         }
     }
 
@@ -44,7 +44,7 @@ class AEDC_Importer {
      * The reference to the class that orchestrates the hooks with the plugin.
      *
      * @since     1.0.0
-     * @return    AEDC_Importer_Admin    Orchestrates the admin hooks of the plugin.
+     * @return    DBIP_Importer_Admin    Orchestrates the admin hooks of the plugin.
      */
     public function get_admin() {
         return $this->admin;

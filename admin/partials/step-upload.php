@@ -3,7 +3,7 @@
  * Step 1: File Upload Template
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    dbip_Importer
  */
 
 // If this file is called directly, abort.
@@ -12,8 +12,8 @@ if (!defined('WPINC')) {
 }
 ?>
 
-<div class="aedc-step-content step-upload">
-    <h2><?php esc_html_e('Upload File', 'aedc-importer'); ?></h2>
+<div class="dbip-step-content step-upload">
+    <h2><?php esc_html_e('Upload File', 'database-import-pro'); ?></h2>
     
     <!-- Add an error message container -->
     <div id="upload-error" class="notice notice-error" style="display: none;">
@@ -21,16 +21,16 @@ if (!defined('WPINC')) {
     </div>
 
     <div class="upload-container">
-        <form id="aedc-upload-form" method="post" enctype="multipart/form-data">
-            <?php wp_nonce_field('aedc_importer_nonce', 'aedc_nonce'); ?>
+        <form id="dbip-upload-form" method="post" enctype="multipart/form-data">
+            <?php wp_nonce_field('dbip_importer_nonce', 'dbip_nonce'); ?>
             
             <div class="upload-area" id="drop-area">
                 <div class="upload-instructions">
                     <span class="dashicons dashicons-upload"></span>
-                    <p><?php esc_html_e('Drag and drop your file here', 'aedc-importer'); ?></p>
-                    <p><?php esc_html_e('or', 'aedc-importer'); ?></p>
+                    <p><?php esc_html_e('Drag and drop your file here', 'database-import-pro'); ?></p>
+                    <p><?php esc_html_e('or', 'database-import-pro'); ?></p>
                     <input type="file" name="file" id="file-input" accept=".csv" class="file-input" />
-                    <label for="file-input" class="button button-primary"><?php esc_html_e('Select File', 'aedc-importer'); ?></label>
+                    <label for="file-input" class="button button-primary"><?php esc_html_e('Select File', 'database-import-pro'); ?></label>
                 </div>
                 <div class="upload-preview" style="display: none;">
                     <div class="file-info">
@@ -43,35 +43,35 @@ if (!defined('WPINC')) {
                         </div>
                         <p class="progress-text">0%</p>
                     </div>
-                    <button type="button" class="button button-secondary remove-file"><?php esc_html_e('Remove', 'aedc-importer'); ?></button>
+                    <button type="button" class="button button-secondary remove-file"><?php esc_html_e('Remove', 'database-import-pro'); ?></button>
                 </div>
             </div>
 
             <div class="preview-container" style="display: none;">
-                <h3><?php esc_html_e('Column Preview', 'aedc-importer'); ?></h3>
+                <h3><?php esc_html_e('Column Preview', 'database-import-pro'); ?></h3>
                 <div class="column-list"></div>
             </div>
 
             <div class="upload-options">
                 <label>
                     <input type="checkbox" name="has_headers" checked />
-                    <?php esc_html_e('First row contains column headers', 'aedc-importer'); ?>
+                    <?php esc_html_e('First row contains column headers', 'database-import-pro'); ?>
                 </label>
             </div>
 
             <div class="upload-actions">
-                <button type="submit" class="button button-primary" id="upload-submit" disabled><?php esc_html_e('Upload and Continue', 'aedc-importer'); ?></button>
+                <button type="submit" class="button button-primary" id="upload-submit" disabled><?php esc_html_e('Upload and Continue', 'database-import-pro'); ?></button>
             </div>
         </form>
     </div>
 
     <div class="upload-requirements">
-        <h3><?php esc_html_e('File Requirements', 'aedc-importer'); ?></h3>
+        <h3><?php esc_html_e('File Requirements', 'database-import-pro'); ?></h3>
         <ul>
-            <li><?php esc_html_e('Accepted format: CSV', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('Maximum file size: 50MB', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('UTF-8 encoding recommended', 'aedc-importer'); ?></li>
-            <li><?php esc_html_e('First row should contain column headers', 'aedc-importer'); ?></li>
+            <li><?php esc_html_e('Accepted format: CSV', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('Maximum file size: 50MB', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('UTF-8 encoding recommended', 'database-import-pro'); ?></li>
+            <li><?php esc_html_e('First row should contain column headers', 'database-import-pro'); ?></li>
         </ul>
     </div>
 </div>
@@ -80,7 +80,7 @@ if (!defined('WPINC')) {
 jQuery(document).ready(function($) {
     const dropArea = $('#drop-area');
     const fileInput = $('#file-input');
-    const uploadForm = $('#aedc-upload-form');
+    const uploadForm = $('#dbip-upload-form');
     const uploadPreview = $('.upload-preview');
     const previewContainer = $('.preview-container');
     const fileNameDisplay = $('.file-name');
@@ -270,8 +270,8 @@ jQuery(document).ready(function($) {
 
     function uploadFile(file) {
         const formData = new FormData();
-        formData.append('action', 'aedc_upload_file');
-        formData.append('nonce', aedcImporter.nonce);
+        formData.append('action', 'dbip_upload_file');
+        formData.append('nonce', dbipImporter.nonce);
         formData.append('file', file);
         formData.append('has_headers', $('input[name="has_headers"]').prop('checked'));
 
@@ -294,7 +294,7 @@ jQuery(document).ready(function($) {
         }, 10000);
 
         $.ajax({
-            url: aedcImporter.ajax_url,
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: formData,
             processData: false,
@@ -346,9 +346,9 @@ jQuery(document).ready(function($) {
                     if (response.data && response.data.headers) {
                         showColumnPreview(response.data.headers);
                         // Store headers in session
-                        $.post(ajaxurl, {
-                            action: 'aedc_store_headers',
-                            nonce: aedcImporter.nonce,
+                        $.post(dbipImporter.ajax_url, {
+                            action: 'dbip_store_headers',
+                            nonce: dbipImporter.nonce,
                             headers: JSON.stringify(response.data.headers)
                         }, function(headerResponse) {
                             console.log('Headers stored:', headerResponse);

@@ -3,10 +3,10 @@
  * Import processor class
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    DBIP_Importer
  */
 
-class AEDC_Importer_Processor {
+class DBIP_Importer_Processor {
     /**
      * Batch size for processing
      */
@@ -16,9 +16,131 @@ class AEDC_Importer_Processor {
      * Initialize the class
      */
     public function __construct() {
-        add_action('wp_ajax_aedc_process_import_batch', array($this, 'process_batch'));
-        add_action('wp_ajax_aedc_get_import_status', array($this, 'get_status'));
-        add_action('wp_ajax_aedc_cancel_import', array($this, 'cancel_import'));
+        add_action('wp_ajax_dbip_process_import_batch', array($this, 'process_batch'));
+        add_action('wp_ajax_dbip_get_import_status', array($this, 'get_status'));
+        add_action('wp_ajax_dbip_cancel_import', array($this, 'cancel_import'));
+    }
+
+    /**
+     * Acquire an import lock to prevent concurrent imports
+     * 
+     * @return bool True if lock acquired, false if another import is running
+     */
+    private function acquire_import_lock() {
+        $lock_key = 'dbip_import_lock_' . get_current_user_id();
+        $lock_timeout = 3600; // 1 hour
+        
+        // Check if lock exists
+        $existing_lock = get_transient($lock_key);
+        if ($existing_lock !== false) {
+            // Lock exists, check if it's still valid
+            $lock_age = time() - $existing_lock;
+            if ($lock_age < $lock_timeout) {
+                // Lock is still valid, import in progress
+                return false;
+            }
+            // Lock expired, we can acquire it
+        }
+        
+        // Set the lock with timestamp
+        set_transient($lock_key, time(), $lock_timeout);
+        error_log('Database Import Pro: Import lock acquired for user ' . get_current_user_id());
+        return true;
+    }
+
+    /**
+     * Release the import lock
+     */
+    private function release_import_lock() {
+        $lock_key = 'dbip_import_lock_' . get_current_user_id();
+        delete_transient($lock_key);
+        error_log('Database Import Pro: Import lock released for user ' . get_current_user_id());
+    }
+
+    /**
+     * Check if an import lock exists
+     * 
+     * @return bool True if locked, false otherwise
+     */
+    private function is_import_locked() {
+        $lock_key = 'dbip_import_lock_' . get_current_user_id();
+        return get_transient($lock_key) !== false;
+    }
+
+    /**
+     * Check memory availability before processing
+     * 
+     * @return array Array with 'available' (bool) and 'message' (string) keys
+     */
+    private function check_memory_availability() {
+        // Get memory limit
+        $memory_limit = ini_get('memory_limit');
+        if ($memory_limit === '-1') {
+            // Unlimited memory
+            return array(
+                'available' => true,
+                'message' => 'Unlimited memory available'
+            );
+        }
+        
+        // Convert memory limit to bytes
+        $limit_bytes = $this->convert_to_bytes($memory_limit);
+        
+        // Get current memory usage
+        $current_usage = memory_get_usage(true);
+        
+        // Calculate available memory
+        $available_memory = $limit_bytes - $current_usage;
+        
+        // Require at least 32MB free memory for batch processing
+        $required_memory = 32 * 1024 * 1024; // 32MB in bytes
+        
+        if ($available_memory < $required_memory) {
+            $available_mb = round($available_memory / (1024 * 1024), 2);
+            $required_mb = round($required_memory / (1024 * 1024), 2);
+            
+            return array(
+                'available' => false,
+                'message' => sprintf(
+                    __('Insufficient memory available. Required: %sMB, Available: %sMB. Please increase PHP memory_limit.', 'database-import-pro'),
+                    $required_mb,
+                    $available_mb
+                )
+            );
+        }
+        
+        return array(
+            'available' => true,
+            'message' => sprintf(
+                __('Memory check passed. Available: %sMB', 'database-import-pro'),
+                round($available_memory / (1024 * 1024), 2)
+            )
+        );
+    }
+
+    /**
+     * Convert PHP memory notation to bytes
+     * 
+     * @param string $value Memory value (e.g., '256M', '1G')
+     * @return int Memory in bytes
+     */
+    private function convert_to_bytes($value) {
+        $value = trim($value);
+        $last = strtolower($value[strlen($value) - 1]);
+        $value = (int)$value;
+        
+        switch ($last) {
+            case 'g':
+                $value *= 1024;
+                // Fall through
+            case 'm':
+                $value *= 1024;
+                // Fall through
+            case 'k':
+                $value *= 1024;
+        }
+        
+        return $value;
     }
 
     /**
@@ -26,50 +148,67 @@ class AEDC_Importer_Processor {
      */
     public function process_batch() {
         try {
-            error_log('AEDC Importer: Starting batch processing');
+            error_log('Database Import Pro Importer: Starting batch processing');
             
             // Force error reporting
             error_reporting(E_ALL);
             ini_set('display_errors', 1);
             
-            check_ajax_referer('aedc_importer_nonce', 'nonce');
+            check_ajax_referer('dbip_importer_nonce', 'nonce');
 
             if (!current_user_can('manage_options')) {
-                error_log('AEDC Importer: Unauthorized access');
-                wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+                error_log('Database Import Pro Importer: Unauthorized access');
+                wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
+                return;
+            }
+            
+            // Check available memory before processing
+            $memory_check = $this->check_memory_availability();
+            if (!$memory_check['available']) {
+                error_log('Database Import Pro Importer: Insufficient memory - ' . $memory_check['message']);
+                wp_send_json_error($memory_check['message']);
                 return;
             }
 
             // Get batch number
             $batch = isset($_POST['batch']) ? (int)$_POST['batch'] : 0;
-            error_log('AEDC Importer: Processing batch ' . $batch);
+            error_log('Database Import Pro Importer: Processing batch ' . $batch);
             
-            // Debug session data
-            error_log('AEDC Importer: Session data: ' . print_r($_SESSION['aedc_importer'], true));
+            // Acquire lock to prevent concurrent imports
+            $lock_acquired = $this->acquire_import_lock();
+            if (!$lock_acquired) {
+                error_log('Database Import Pro Importer: Another import is already in progress');
+                wp_send_json_error(__('Another import is already in progress. Please wait for it to complete.', 'database-import-pro'));
+                return;
+            }
+            
+            // Debug import data
+            $import_data = dbip_get_import_data();
+            error_log('Database Import Pro Importer: Import data: ' . print_r($import_data, true));
 
             // Verify required data
-            if (!isset($_SESSION['aedc_importer']['file']) || 
-                !isset($_SESSION['aedc_importer']['mapping']) || 
-                !isset($_SESSION['aedc_importer']['target_table'])) {
-                error_log('AEDC Importer: Missing required session data');
-                wp_send_json_error(__('Missing required import data', 'aedc-importer'));
+            if (!dbip_get_import_data('file') || 
+                !dbip_get_import_data('mapping') || 
+                !dbip_get_import_data('target_table')) {
+                error_log('Database Import Pro Importer: Missing required import data');
+                wp_send_json_error(__('Missing required import data', 'database-import-pro'));
                 return;
             }
 
-            $file_info = $_SESSION['aedc_importer']['file'];
+            $file_info = dbip_get_import_data('file');
             
             // Verify file exists and is readable
             if (!file_exists($file_info['path']) || !is_readable($file_info['path'])) {
-                error_log('AEDC Importer: Import file not found or not readable: ' . $file_info['path']);
-                wp_send_json_error(__('Import file not found or not readable', 'aedc-importer'));
+                error_log('Database Import Pro Importer: Import file not found or not readable: ' . $file_info['path']);
+                wp_send_json_error(__('Import file not found or not readable', 'database-import-pro'));
                 return;
             }
 
-            $import_mode = $_SESSION['aedc_importer']['import_mode'] ?? 'insert';
-            $key_columns = $_SESSION['aedc_importer']['key_columns'] ?? [];
-            $allow_null = $_SESSION['aedc_importer']['allow_null'] ?? false;
-            $mapping = $_SESSION['aedc_importer']['mapping'];
-            $table = $_SESSION['aedc_importer']['target_table'];
+            $import_mode = dbip_get_import_data('import_mode') ?: 'insert';
+            $key_columns = dbip_get_import_data('key_columns') ?: [];
+            $allow_null = dbip_get_import_data('allow_null') ?: false;
+            $mapping = dbip_get_import_data('mapping');
+            $table = dbip_get_import_data('target_table');
 
             $stats = array(
                 'processed' => 0,
@@ -83,8 +222,8 @@ class AEDC_Importer_Processor {
 
             $handle = fopen($file_info['path'], 'r');
             if ($handle === false) {
-                error_log('AEDC Importer: Failed to open import file');
-                wp_send_json_error(__('Failed to open import file', 'aedc-importer'));
+                error_log('Database Import Pro Importer: Failed to open import file');
+                wp_send_json_error(__('Failed to open import file', 'database-import-pro'));
                 return;
             }
 
@@ -96,7 +235,7 @@ class AEDC_Importer_Processor {
                 for ($i = 0; $i < ($batch * self::BATCH_SIZE); $i++) {
                     if (fgetcsv($handle) === false) {
                         if (feof($handle)) {
-                            error_log('AEDC Importer: Reached end of file while skipping to batch');
+                            error_log('Database Import Pro Importer: Reached end of file while skipping to batch');
                             $stats['completed'] = true;
                             fclose($handle);
                             
@@ -117,9 +256,15 @@ class AEDC_Importer_Processor {
                             wp_send_json_success($stats);
                             return;
                         }
-                        throw new Exception(__('Error reading CSV file', 'aedc-importer'));
+                        throw new Exception(__('Error reading CSV file', 'database-import-pro'));
                     }
                 }
+
+                // Start database transaction for batch integrity
+                global $wpdb;
+                $wpdb->query('START TRANSACTION');
+                
+                $transaction_success = true;
 
                 // Process batch
                 $processed = 0;
@@ -130,12 +275,19 @@ class AEDC_Importer_Processor {
                     $stats['processed']++;
                     $stats[$result['status']]++;
                     
+                    // Track if any critical failures occur
+                    if ($result['status'] === 'failed') {
+                        // Decide if failure should rollback entire batch
+                        // For now, we continue but could rollback on critical errors
+                        $transaction_success = true; // Still commit partial batch
+                    }
+                    
                     if (!empty($result['message'])) {
                         $stats['messages'][] = array(
                             'type' => $result['status'] === 'failed' ? 'error' : 'info',
                             'row' => $row_num,
                             'message' => sprintf(
-                                __('Row %d: %s', 'aedc-importer'),
+                                __('Row %d: %s', 'database-import-pro'),
                                 $row_num,
                                 $result['message']
                             )
@@ -144,11 +296,18 @@ class AEDC_Importer_Processor {
 
                     $processed++;
                 }
+                
+                // Commit or rollback transaction
+                if ($transaction_success) {
+                    $wpdb->query('COMMIT');
+                } else {
+                    $wpdb->query('ROLLBACK');
+                }
 
                 // Check if we've reached the end
                 $stats['completed'] = feof($handle);
 
-                // If this is the final batch, save the import log
+                // If this is the final batch, save the import log and cleanup
                 if ($stats['completed']) {
                     $error_log = array();
                     foreach ($stats['messages'] as $msg) {
@@ -160,22 +319,32 @@ class AEDC_Importer_Processor {
                         }
                     }
                     $this->save_import_log($stats, json_encode($error_log));
+                    
+                    // Clean up uploaded file after successful import
+                    $this->cleanup_import_file();
+                    
+                    // Release lock when import is complete
+                    $this->release_import_lock();
                 }
 
                 fclose($handle);
-                error_log('AEDC Importer: Batch ' . $batch . ' completed. Stats: ' . print_r($stats, true));
+                error_log('Database Import Pro Importer: Batch ' . $batch . ' completed. Stats: ' . print_r($stats, true));
                 wp_send_json_success($stats);
 
             } catch (Exception $e) {
                 if (is_resource($handle)) {
                     fclose($handle);
                 }
-                error_log('AEDC Importer: Error processing batch: ' . $e->getMessage());
+                // Release lock on error
+                $this->release_import_lock();
+                error_log('Database Import Pro Importer: Error processing batch: ' . $e->getMessage());
                 wp_send_json_error($e->getMessage());
             }
 
         } catch (Exception $e) {
-            error_log('AEDC Importer: Fatal error: ' . $e->getMessage());
+            // Release lock on fatal error
+            $this->release_import_lock();
+            error_log('Database Import Pro Importer: Fatal error: ' . $e->getMessage());
             wp_send_json_error($e->getMessage());
         }
     }
@@ -192,8 +361,8 @@ class AEDC_Importer_Processor {
                 return array('status' => 'failed', 'message' => 'Empty row data');
             }
 
-            // Get CSV headers from session
-            $csv_headers = isset($_SESSION['aedc_importer']['headers']) ? $_SESSION['aedc_importer']['headers'] : array();
+            // Get CSV headers from transient
+            $csv_headers = dbip_get_import_data('headers') ?: array();
             
             // Create row data map using either headers or numeric indices
             if (!empty($csv_headers)) {
@@ -247,7 +416,7 @@ class AEDC_Importer_Processor {
             switch ($import_mode) {
                 case 'insert':
                     if ($this->record_exists($table, $data, $key_columns)) {
-                        return array('status' => 'skipped', 'message' => __('Record already exists', 'aedc-importer'));
+                        return array('status' => 'skipped', 'message' => __('Record already exists', 'database-import-pro'));
                     }
                     
                     $result = $wpdb->insert($table, $data);
@@ -258,13 +427,13 @@ class AEDC_Importer_Processor {
 
                 case 'update':
                     if (!$this->record_exists($table, $data, $key_columns)) {
-                        return array('status' => 'skipped', 'message' => __('Record not found for update', 'aedc-importer'));
+                        return array('status' => 'skipped', 'message' => __('Record not found for update', 'database-import-pro'));
                     }
                     
                     $where = array();
                     foreach ($key_columns as $key) {
                         if (!isset($data[$key])) {
-                            throw new Exception(sprintf(__('Missing key column %s', 'aedc-importer'), $key));
+                            throw new Exception(sprintf(__('Missing key column %s', 'database-import-pro'), $key));
                         }
                         $where[$key] = $data[$key];
                         unset($data[$key]); // Don't update key columns
@@ -280,7 +449,7 @@ class AEDC_Importer_Processor {
                     $where = array();
                     foreach ($key_columns as $key) {
                         if (!isset($data[$key])) {
-                            throw new Exception(sprintf(__('Missing key column %s', 'aedc-importer'), $key));
+                            throw new Exception(sprintf(__('Missing key column %s', 'database-import-pro'), $key));
                         }
                         $where[$key] = $data[$key];
                     }
@@ -303,10 +472,10 @@ class AEDC_Importer_Processor {
                     return array('status' => $status);
 
                 default:
-                    throw new Exception(sprintf(__('Invalid import mode: %s', 'aedc-importer'), $import_mode));
+                    throw new Exception(sprintf(__('Invalid import mode: %s', 'database-import-pro'), $import_mode));
             }
         } catch (Exception $e) {
-            error_log('AEDC Importer: Row processing error: ' . $e->getMessage());
+            error_log('Database Import Pro Importer: Row processing error: ' . $e->getMessage());
             return array('status' => 'failed', 'message' => $e->getMessage());
         }
     }
@@ -330,7 +499,7 @@ class AEDC_Importer_Processor {
                 
                 // Check if required field has a value
                 if (!isset($data[$column->Field]) || $data[$column->Field] === null || $data[$column->Field] === '') {
-                    error_log("AEDC Importer: Missing required field {$column->Field}");
+                    error_log("Database Import Pro: Missing required field {$column->Field}");
                     return false;
                 }
             }
@@ -378,13 +547,9 @@ class AEDC_Importer_Processor {
             case 'capitalize':
                 return ucwords(strtolower($value));
             case 'custom':
-                if (!empty($custom_code)) {
-                    try {
-                        return eval('return ' . $custom_code . ';');
-                    } catch (Exception $e) {
-                        error_log('Custom transform error: ' . $e->getMessage());
-                    }
-                }
+                // SECURITY FIX: Removed eval() - custom transformations disabled for security
+                // Custom PHP code execution has been removed due to security concerns
+                error_log('Database Import Pro: Custom transformations are disabled for security reasons');
                 return $value;
             default:
                 return $value;
@@ -392,24 +557,41 @@ class AEDC_Importer_Processor {
     }
 
     /**
+     * Clean up uploaded file after import completion
+     */
+    private function cleanup_import_file() {
+        $file_info = dbip_get_import_data('file');
+        if ($file_info && isset($file_info['path'])) {
+            $file_path = $file_info['path'];
+            if (file_exists($file_path)) {
+                @unlink($file_path);
+                error_log('Database Import Pro: Cleaned up import file: ' . $file_path);
+            }
+            dbip_set_import_data('file', null);
+        }
+    }
+
+    /**
      * Cancel import and clean up
      */
     public function cancel_import() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        // Clean up any temporary data if needed
-        if (isset($_SESSION['aedc_importer'])) {
-            unset(
-                $_SESSION['aedc_importer']['import_mode'],
-                $_SESSION['aedc_importer']['key_columns'],
-                $_SESSION['aedc_importer']['allow_null'],
-                $_SESSION['aedc_importer']['dry_run']
-            );
-        }
+        // Clean up any temporary data
+        dbip_set_import_data('import_mode', null);
+        dbip_set_import_data('key_columns', null);
+        dbip_set_import_data('allow_null', null);
+        dbip_set_import_data('dry_run', null);
+        
+        // Also cleanup the uploaded file
+        $this->cleanup_import_file();
+        
+        // Release import lock
+        $this->release_import_lock();
 
         wp_send_json_success();
     }
@@ -420,21 +602,23 @@ class AEDC_Importer_Processor {
     private function save_import_log($stats, $error_log = '') {
         global $wpdb;
         
-        error_log('AEDC Importer Debug: Starting save_import_log');
-        error_log('AEDC Importer Debug: Stats - ' . print_r($stats, true));
+        error_log('Database Import Pro Importer Debug: Starting save_import_log');
+        error_log('Database Import Pro Importer Debug: Stats - ' . print_r($stats, true));
         
         // Calculate the total duration from the start time
-        $start_time = isset($_SESSION['aedc_importer']['start_time']) ? strtotime($_SESSION['aedc_importer']['start_time']) : 0;
+        $start_time_str = dbip_get_import_data('start_time');
+        $start_time = $start_time_str ? strtotime($start_time_str) : 0;
         $duration = $start_time > 0 ? (time() - $start_time) : 0;
         
-        // Get total records from session
-        $total_records = isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : $stats['processed'];
+        // Get total records from transient
+        $total_records = dbip_get_import_data('total_records') ?: $stats['processed'];
         
+        $file_info = dbip_get_import_data('file');
         $import_data = array(
             'user_id' => get_current_user_id(),
-            'import_date' => current_time('mysql'),
-            'file_name' => basename($_SESSION['aedc_importer']['file']['name']),
-            'table_name' => $_SESSION['aedc_importer']['target_table'],
+            'import_date' => wp_date('Y-m-d H:i:s', null, wp_timezone()),
+            'file_name' => basename($file_info['name']),
+            'table_name' => dbip_get_import_data('target_table'),
             'total_rows' => $total_records,
             'inserted' => isset($stats['inserted']) ? $stats['inserted'] : 0,
             'updated' => isset($stats['updated']) ? $stats['updated'] : 0,
@@ -445,58 +629,89 @@ class AEDC_Importer_Processor {
             'duration' => $duration
         );
 
-        error_log('AEDC Importer Debug: Import data - ' . print_r($import_data, true));
-        error_log('AEDC Importer Debug: Table name - ' . $wpdb->prefix . 'aedc_import_logs');
+        error_log('Database Import Pro Importer Debug: Import data - ' . print_r($import_data, true));
+        error_log('Database Import Pro Importer Debug: Table name - ' . $wpdb->prefix . 'dbip_import_logs');
 
         // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}aedc_import_logs'");
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}dbip_import_logs'");
         if (!$table_exists) {
-            error_log('AEDC Importer Debug: Table does not exist, creating now...');
+            error_log('Database Import Pro Importer Debug: Table does not exist, creating now...');
             $this->create_logs_table();
         }
         
-        $result = $wpdb->insert($wpdb->prefix . 'aedc_import_logs', $import_data);
+        $result = $wpdb->insert($wpdb->prefix . 'dbip_import_logs', $import_data);
         
         if ($result === false) {
-            error_log('AEDC Importer Error: Failed to save import log - ' . $wpdb->last_error);
+            error_log('Database Import Pro Importer Error: Failed to save import log - ' . $wpdb->last_error);
             return false;
         }
 
-        error_log('AEDC Importer Debug: Log saved successfully with ID: ' . $wpdb->insert_id);
+        error_log('Database Import Pro Importer Debug: Log saved successfully with ID: ' . $wpdb->insert_id);
         
-        // Update session with final stats for completion page
-        $_SESSION['aedc_importer']['import_stats'] = array_merge($stats, array('duration' => $duration));
+        // Update transient with final stats for completion page
+        dbip_set_import_data('import_stats', array_merge($stats, array('duration' => $duration)));
         
-        // If there are errors, store them in session for the completion page
+        // If there are errors, store them in transient for the completion page
         if (!empty($error_log)) {
-            $_SESSION['aedc_importer']['error_log'] = json_decode($error_log, true);
+            dbip_set_import_data('error_log', json_decode($error_log, true));
         }
         
         return $wpdb->insert_id;
     }
 
     /**
-     * Get all import logs
+     * Get all import logs with pagination
      */
     public function get_import_logs() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         global $wpdb;
-        $logs = $wpdb->get_results("
-            SELECT l.*, u.display_name as user 
-            FROM {$wpdb->prefix}aedc_import_logs l 
-            LEFT JOIN {$wpdb->users} u ON l.user_id = u.ID 
-            ORDER BY import_date DESC
+        
+        // Get pagination parameters
+        $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
+        $per_page = isset($_POST['per_page']) ? absint($_POST['per_page']) : 20;
+        
+        // Validate and set reasonable limits
+        $page = max(1, $page);
+        $per_page = max(1, min(100, $per_page)); // Cap at 100 per page
+        
+        // Calculate offset
+        $offset = ($page - 1) * $per_page;
+        
+        // Get total count
+        $total_count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}dbip_import_logs
         ");
         
-        wp_send_json_success($logs);
+        // Get paginated logs
+        $logs = $wpdb->get_results($wpdb->prepare("
+            SELECT l.*, u.display_name as user 
+            FROM {$wpdb->prefix}dbip_import_logs l 
+            LEFT JOIN {$wpdb->users} u ON l.user_id = u.ID 
+            ORDER BY import_date DESC
+            LIMIT %d OFFSET %d
+        ", $per_page, $offset));
+        
+        // Calculate pagination info
+        $total_pages = ceil($total_count / $per_page);
+        
+        wp_send_json_success(array(
+            'logs' => $logs,
+            'pagination' => array(
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total_items' => $total_count,
+                'total_pages' => $total_pages
+            )
+        ));
     }
 
     /**
      * Export failed rows as CSV
      */
     public function export_error_log() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!isset($_POST['log_id'])) {
             wp_send_json_error('Missing log ID');
@@ -505,7 +720,7 @@ class AEDC_Importer_Processor {
         
         global $wpdb;
         $log = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}aedc_import_logs WHERE id = %d",
+            "SELECT * FROM {$wpdb->prefix}dbip_import_logs WHERE id = %d",
             $_POST['log_id']
         ));
         
@@ -533,16 +748,16 @@ class AEDC_Importer_Processor {
      * Save import progress in session
      */
     public function save_import_progress() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!isset($_POST['stats']) || !isset($_POST['percentage'])) {
             wp_send_json_error('Missing required data');
             return;
         }
 
-        // Store progress in session
-        $_SESSION['aedc_importer']['import_stats'] = $_POST['stats'];
-        $_SESSION['aedc_importer']['progress'] = $_POST['percentage'];
+        // Store progress in transient
+        dbip_set_import_data('import_stats', $_POST['stats']);
+        dbip_set_import_data('progress', $_POST['percentage']);
         
         wp_send_json_success();
     }
@@ -551,8 +766,8 @@ class AEDC_Importer_Processor {
      * Save import start time
      */
     public function save_import_start() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
-        $_SESSION['aedc_importer']['start_time'] = current_time('mysql');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
+        dbip_set_import_data('start_time', wp_date('Y-m-d H:i:s', null, wp_timezone()));
         wp_send_json_success();
     }
 
@@ -562,11 +777,11 @@ class AEDC_Importer_Processor {
     private function create_logs_table() {
         global $wpdb;
         
-        error_log('AEDC Importer Debug: Creating logs table');
+        error_log('Database Import Pro Importer Debug: Creating logs table');
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}aedc_import_logs (
+        $sql = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}dbip_import_logs (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             import_date datetime NOT NULL,
@@ -586,6 +801,6 @@ class AEDC_Importer_Processor {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
         
-        error_log('AEDC Importer Debug: Logs table creation complete');
+        error_log('Database Import Pro Importer Debug: Logs table creation complete');
     }
 }

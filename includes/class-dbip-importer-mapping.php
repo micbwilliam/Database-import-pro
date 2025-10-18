@@ -3,51 +3,51 @@
  * Field mapping handler class
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    DBIP_Importer
  */
 
-class AEDC_Importer_Mapping {
+class DBIP_Importer_Mapping {
     /**
      * Option name for storing mapping templates
      */
-    const TEMPLATE_OPTION = 'aedc_importer_mapping_templates';
+    const TEMPLATE_OPTION = 'DBIP_Importer_mapping_templates';
 
     /**
      * Initialize the class
      */
     public function __construct() {
-        add_action('wp_ajax_aedc_save_mapping_template', array($this, 'save_template'));
-        add_action('wp_ajax_aedc_load_mapping_template', array($this, 'load_template'));
-        add_action('wp_ajax_aedc_get_mapping_templates', array($this, 'get_templates'));
-        add_action('wp_ajax_aedc_delete_mapping_template', array($this, 'delete_template'));
-        add_action('wp_ajax_aedc_auto_suggest_mapping', array($this, 'auto_suggest_mapping'));
-        add_action('wp_ajax_aedc_save_field_mapping', array($this, 'save_field_mapping'));
-        add_action('wp_ajax_aedc_validate_import_data', array($this, 'validate_import_data')); // Add this line
-        add_action('wp_ajax_aedc_save_import_options', array($this, 'save_import_options'));
+        add_action('wp_ajax_dbip_save_mapping_template', array($this, 'save_template'));
+        add_action('wp_ajax_dbip_load_mapping_template', array($this, 'load_template'));
+        add_action('wp_ajax_dbip_get_mapping_templates', array($this, 'get_templates'));
+        add_action('wp_ajax_dbip_delete_mapping_template', array($this, 'delete_template'));
+        add_action('wp_ajax_dbip_auto_suggest_mapping', array($this, 'auto_suggest_mapping'));
+        add_action('wp_ajax_dbip_save_field_mapping', array($this, 'save_field_mapping'));
+        add_action('wp_ajax_dbip_validate_import_data', array($this, 'validate_import_data')); // Add this line
+        add_action('wp_ajax_dbip_save_import_options', array($this, 'save_import_options'));
     }
 
     /**
      * Save mapping template
      */
     public function save_template() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $template_name = sanitize_text_field($_POST['template_name']);
         $mapping_data = json_decode(stripslashes($_POST['mapping_data']), true);
 
         if (empty($template_name) || empty($mapping_data)) {
-            wp_send_json_error(__('Invalid template data', 'aedc-importer'));
+            wp_send_json_error(__('Invalid template data', 'database-import-pro'));
         }
 
         $templates = get_option(self::TEMPLATE_OPTION, array());
         $templates[$template_name] = array(
             'name' => $template_name,
             'mapping' => $mapping_data,
-            'created' => current_time('mysql'),
+            'created' => wp_date('Y-m-d H:i:s', null, wp_timezone()),
             'table' => sanitize_text_field($_POST['table_name'])
         );
 
@@ -59,17 +59,17 @@ class AEDC_Importer_Mapping {
      * Load mapping template
      */
     public function load_template() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $template_name = sanitize_text_field($_POST['template_name']);
         $templates = get_option(self::TEMPLATE_OPTION, array());
 
         if (!isset($templates[$template_name])) {
-            wp_send_json_error(__('Template not found', 'aedc-importer'));
+            wp_send_json_error(__('Template not found', 'database-import-pro'));
         }
 
         wp_send_json_success($templates[$template_name]);
@@ -79,10 +79,10 @@ class AEDC_Importer_Mapping {
      * Get all mapping templates
      */
     public function get_templates() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $templates = get_option(self::TEMPLATE_OPTION, array());
@@ -93,10 +93,10 @@ class AEDC_Importer_Mapping {
      * Delete mapping template
      */
     public function delete_template() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $template_name = sanitize_text_field($_POST['template_name']);
@@ -114,17 +114,17 @@ class AEDC_Importer_Mapping {
      * Auto-suggest field mapping based on similarity
      */
     public function auto_suggest_mapping() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $csv_headers = isset($_POST['csv_headers']) ? json_decode(stripslashes($_POST['csv_headers']), true) : array();
         $db_columns = isset($_POST['db_columns']) ? json_decode(stripslashes($_POST['db_columns']), true) : array();
 
         if (empty($csv_headers) || empty($db_columns)) {
-            wp_send_json_error(__('Missing headers or columns', 'aedc-importer'));
+            wp_send_json_error(__('Missing headers or columns', 'database-import-pro'));
         }
 
         $suggestions = array();
@@ -167,15 +167,15 @@ class AEDC_Importer_Mapping {
      * Save field mapping
      */
     public function save_field_mapping() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         $mapping = json_decode(stripslashes($_POST['mapping']), true);
         if (!is_array($mapping)) {
-            wp_send_json_error(__('Invalid mapping data', 'aedc-importer'));
+            wp_send_json_error(__('Invalid mapping data', 'database-import-pro'));
         }
 
         // Updated schema to handle auto-increment and keep-current fields
@@ -200,20 +200,29 @@ class AEDC_Importer_Mapping {
             )
         );
 
-        error_log('AEDC Importer Debug: Validating mapping data: ' . print_r($mapping, true));
+        error_log('Database Import Pro Importer Debug: Validating mapping data: ' . print_r($mapping, true));
 
         $validation = $this->validate_schema($mapping, $schema);
         if (!$validation['valid']) {
-            error_log('AEDC Importer Debug: Validation failed: ' . print_r($validation, true));
+            error_log('Database Import Pro Importer Debug: Validation failed: ' . print_r($validation, true));
             wp_send_json_error($validation['error']);
         }
 
-        // Store mapping in session
-        $_SESSION['aedc_importer']['mapping'] = $mapping;
+        // Validate default values against column types
+        $table = dbip_get_import_data('target_table');
+        if ($table) {
+            $default_validation = $this->validate_default_values($mapping, $table);
+            if (!$default_validation['valid']) {
+                wp_send_json_error($default_validation['errors']);
+            }
+        }
+
+        // Store mapping in transient
+        dbip_set_import_data('mapping', $mapping);
 
         // Generate preview data
         $preview_data = $this->generate_preview_data($mapping);
-        $_SESSION['aedc_importer']['preview_data'] = $preview_data;
+        dbip_set_import_data('preview_data', $preview_data);
 
         wp_send_json_success();
     }
@@ -226,7 +235,7 @@ class AEDC_Importer_Mapping {
             if (!is_array($data)) {
                 return array(
                     'valid' => false,
-                    'error' => __('Expected object', 'aedc-importer')
+                    'error' => __('Expected object', 'database-import-pro')
                 );
             }
 
@@ -242,7 +251,7 @@ class AEDC_Importer_Mapping {
                                 return array(
                                     'valid' => false,
                                     'error' => sprintf(
-                                        __('Invalid property "%s": %s', 'aedc-importer'),
+                                        __('Invalid property "%s": %s', 'database-import-pro'),
                                         $key,
                                         $validation['error']
                                     )
@@ -254,7 +263,7 @@ class AEDC_Importer_Mapping {
                         return array(
                             'valid' => false,
                             'error' => sprintf(
-                                __('Unknown property "%s"', 'aedc-importer'),
+                                __('Unknown property "%s"', 'database-import-pro'),
                                 $key
                             )
                         );
@@ -271,7 +280,7 @@ class AEDC_Importer_Mapping {
                             return array(
                                 'valid' => false,
                                 'error' => sprintf(
-                                    __('Invalid property "%s": %s', 'aedc-importer'),
+                                    __('Invalid property "%s": %s', 'database-import-pro'),
                                     $property,
                                     $validation['error']
                                 )
@@ -288,7 +297,7 @@ class AEDC_Importer_Mapping {
                         return array(
                             'valid' => false,
                             'error' => sprintf(
-                                __('Missing required property "%s"', 'aedc-importer'),
+                                __('Missing required property "%s"', 'database-import-pro'),
                                 $required
                             )
                         );
@@ -303,7 +312,7 @@ class AEDC_Importer_Mapping {
                 return array(
                     'valid' => false,
                     'error' => sprintf(
-                        __('Value must be one of: %s', 'aedc-importer'),
+                        __('Value must be one of: %s', 'database-import-pro'),
                         implode(', ', $schema['enum'])
                     )
                 );
@@ -317,7 +326,7 @@ class AEDC_Importer_Mapping {
      * Generate preview data using mapping
      */
     private function generate_preview_data($mapping) {
-        $file_info = isset($_SESSION['aedc_importer']['file']) ? $_SESSION['aedc_importer']['file'] : null;
+        $file_info = dbip_get_import_data('file');
         if (!$file_info || !file_exists($file_info['path'])) {
             return array();
         }
@@ -420,13 +429,13 @@ class AEDC_Importer_Mapping {
                         $preview_data[] = $mapped_row;
                     }
                 } catch (Exception $e) {
-                    error_log('AEDC Importer Excel Preview Error: ' . $e->getMessage());
+                    error_log('Database Import Pro Importer Excel Preview Error: ' . $e->getMessage());
                 }
             }
         }
 
-        // Store total records count in session
-        $_SESSION['aedc_importer']['total_records'] = $this->get_total_records($file_info['path'], $file_info['type']);
+        // Store total records count in transient
+        dbip_set_import_data('total_records', $this->get_total_records($file_info['path'], $file_info['type']));
 
         return $preview_data;
     }
@@ -445,15 +454,9 @@ class AEDC_Importer_Mapping {
             case 'capitalize':
                 return ucwords(strtolower($value));
             case 'custom':
-                if (!empty($custom_code)) {
-                    try {
-                        // Create a safe environment for custom code
-                        return eval('return ' . $custom_code . ';');
-                    } catch (Exception $e) {
-                        error_log('Custom transform error: ' . $e->getMessage());
-                        return $value;
-                    }
-                }
+                // SECURITY FIX: Removed eval() - custom transformations disabled for security
+                // Custom PHP code execution has been removed due to security concerns
+                error_log('Database Import Pro: Custom transformations are disabled for security reasons');
                 return $value;
             default:
                 // Auto-transform dates if the value looks like a date with backslashes
@@ -487,7 +490,7 @@ class AEDC_Importer_Mapping {
                 $worksheet = $spreadsheet->getActiveSheet();
                 $count = $worksheet->getHighestRow() - 1; // Subtract header row
             } catch (Exception $e) {
-                error_log('AEDC Importer Excel Count Error: ' . $e->getMessage());
+                error_log('Database Import Pro Importer Excel Count Error: ' . $e->getMessage());
             }
         }
         
@@ -498,18 +501,18 @@ class AEDC_Importer_Mapping {
      * Validate import data
      */
     public function validate_import_data() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['aedc_importer']['preview_data'] : array();
-        $mapping = isset($_SESSION['aedc_importer']['mapping']) ? $_SESSION['aedc_importer']['mapping'] : array();
-        $table = isset($_SESSION['aedc_importer']['target_table']) ? $_SESSION['aedc_importer']['target_table'] : '';
+        $preview_data = dbip_get_import_data('preview_data') ?: array();
+        $mapping = dbip_get_import_data('mapping') ?: array();
+        $table = dbip_get_import_data('target_table') ?: '';
 
         if (empty($preview_data) || empty($mapping) || empty($table)) {
-            wp_send_json_error(__('Missing required data', 'aedc-importer'));
+            wp_send_json_error(__('Missing required data', 'database-import-pro'));
         }
 
         global $wpdb;
@@ -528,7 +531,7 @@ class AEDC_Importer_Mapping {
             // Check required fields
             if ($is_required && empty($field_map['csv_field']) && empty($field_map['default_value'])) {
                 $validation_results['errors'][] = sprintf(
-                    __('Required field "%s" is not mapped', 'aedc-importer'),
+                    __('Required field "%s" is not mapped', 'database-import-pro'),
                     $field_name
                 );
                 continue;
@@ -540,7 +543,7 @@ class AEDC_Importer_Mapping {
                     $value = $row[$field_name] ?? '';
                     if (!empty($value) && !$this->validate_field_type($value, $column->Type)) {
                         $validation_results['errors'][] = sprintf(
-                            __('Invalid data type for field "%s" in row %d', 'aedc-importer'),
+                            __('Invalid data type for field "%s" in row %d', 'database-import-pro'),
                             $field_name,
                             $index + 1
                         );
@@ -552,14 +555,14 @@ class AEDC_Importer_Mapping {
         // Generate HTML response
         ob_start();
         if (empty($validation_results['errors']) && empty($validation_results['warnings'])) {
-            echo '<div class="notice notice-success"><p>' . esc_html__('All data is valid and ready for import.', 'aedc-importer') . '</p></div>';
+            echo '<div class="notice notice-success"><p>' . esc_html__('All data is valid and ready for import.', 'database-import-pro') . '</p></div>';
         } else {
             if (!empty($validation_results['errors'])) {
-                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Validation Errors:', 'aedc-importer') . '</strong></p>';
+                echo '<div class="notice notice-error"><p><strong>' . esc_html__('Validation Errors:', 'database-import-pro') . '</strong></p>';
                 echo '<ul><li>' . implode('</li><li>', array_map('esc_html', $validation_results['errors'])) . '</li></ul></div>';
             }
             if (!empty($validation_results['warnings'])) {
-                echo '<div class="notice notice-warning"><p><strong>' . esc_html__('Warnings:', 'aedc-importer') . '</strong></p>';
+                echo '<div class="notice notice-warning"><p><strong>' . esc_html__('Warnings:', 'database-import-pro') . '</strong></p>';
                 echo '<ul><li>' . implode('</li><li>', array_map('esc_html', $validation_results['warnings'])) . '</li></ul></div>';
             }
         }
@@ -717,21 +720,254 @@ class AEDC_Importer_Mapping {
     }
 
     /**
+     * Validate default values against column types
+     * 
+     * @param array $mapping Field mapping configuration
+     * @param string $table Target table name
+     * @return array Validation result with 'valid' boolean and 'errors' array
+     */
+    private function validate_default_values($mapping, $table) {
+        global $wpdb;
+        
+        $errors = array();
+        $table_escaped = esc_sql($table);
+        
+        // Get table column information
+        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `{$table_escaped}`");
+        
+        if (empty($columns)) {
+            return array('valid' => true, 'errors' => array());
+        }
+        
+        // Create a map of column names to column info
+        $column_info = array();
+        foreach ($columns as $column) {
+            $column_info[$column->Field] = $column;
+        }
+        
+        // Validate each field's default value
+        foreach ($mapping as $field_name => $field_config) {
+            // Skip if no default value is set
+            if (!isset($field_config['default_value']) || $field_config['default_value'] === '') {
+                continue;
+            }
+            
+            // Check if column exists
+            if (!isset($column_info[$field_name])) {
+                continue; // Skip validation for non-existent columns
+            }
+            
+            $column = $column_info[$field_name];
+            $default_value = $field_config['default_value'];
+            
+            // Skip special values
+            if (in_array(strtoupper($default_value), array('NULL', 'CURRENT_TIMESTAMP', 'NOW()', '[CURRENT DATA]', '[AUTO INCREMENT]'))) {
+                continue;
+            }
+            
+            // Validate the default value against the column type
+            if (!$this->validate_default_value_type($default_value, $column->Type, $field_name)) {
+                $errors[] = sprintf(
+                    __('Invalid default value "%s" for field "%s" (type: %s)', 'database-import-pro'),
+                    esc_html($default_value),
+                    esc_html($field_name),
+                    esc_html($column->Type)
+                );
+            }
+        }
+        
+        return array(
+            'valid' => empty($errors),
+            'errors' => empty($errors) ? '' : implode('<br>', $errors)
+        );
+    }
+
+    /**
+     * Validate a single default value against its column type
+     * 
+     * @param string $value Default value to validate
+     * @param string $db_type Database column type
+     * @param string $field_name Field name for better error messages
+     * @return bool True if valid, false otherwise
+     */
+    private function validate_default_value_type($value, $db_type, $field_name) {
+        // Empty values are allowed (will be NULL if column allows)
+        if ($value === '' || $value === null) {
+            return true;
+        }
+        
+        // Extract base type and constraints
+        if (preg_match('/^([a-z]+)(\(([^)]+)\))?/i', $db_type, $matches)) {
+            $type = strtolower($matches[1]);
+            $constraint = isset($matches[3]) ? $matches[3] : '';
+            
+            switch ($type) {
+                case 'tinyint':
+                    // Special handling for boolean (tinyint(1))
+                    if ($constraint === '1') {
+                        return in_array(strtolower($value), array('0', '1', 'true', 'false', 'yes', 'no')) 
+                            || is_numeric($value);
+                    }
+                    // Fall through to int validation
+                    
+                case 'smallint':
+                case 'mediumint':
+                case 'int':
+                case 'integer':
+                case 'bigint':
+                    // Check if it's a valid integer
+                    if (!is_numeric($value) || strpos($value, '.') !== false) {
+                        error_log("Database Import Pro: Invalid integer default value '$value' for field '$field_name'");
+                        return false;
+                    }
+                    
+                    // Check range based on type (optional, can add later)
+                    return true;
+                    
+                case 'decimal':
+                case 'numeric':
+                case 'float':
+                case 'double':
+                case 'real':
+                    if (!is_numeric($value)) {
+                        error_log("Database Import Pro: Invalid numeric default value '$value' for field '$field_name'");
+                        return false;
+                    }
+                    return true;
+                    
+                case 'date':
+                    // Validate date format (YYYY-MM-DD)
+                    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+                        $timestamp = strtotime($value);
+                        if ($timestamp === false) {
+                            error_log("Database Import Pro: Invalid date default value '$value' for field '$field_name'");
+                            return false;
+                        }
+                    }
+                    return true;
+                    
+                case 'datetime':
+                case 'timestamp':
+                    // Validate datetime format
+                    $timestamp = strtotime($value);
+                    if ($timestamp === false && !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value)) {
+                        error_log("Database Import Pro: Invalid datetime default value '$value' for field '$field_name'");
+                        return false;
+                    }
+                    return true;
+                    
+                case 'time':
+                    // Validate time format (HH:MM:SS or HH:MM)
+                    if (!preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $value)) {
+                        error_log("Database Import Pro: Invalid time default value '$value' for field '$field_name'");
+                        return false;
+                    }
+                    return true;
+                    
+                case 'year':
+                    // Validate year (must be 4 digits)
+                    if (!is_numeric($value) || strlen($value) !== 4) {
+                        error_log("Database Import Pro: Invalid year default value '$value' for field '$field_name'");
+                        return false;
+                    }
+                    return true;
+                    
+                case 'char':
+                case 'varchar':
+                    // Check length constraint
+                    if ($constraint && is_numeric($constraint)) {
+                        $max_length = (int)$constraint;
+                        if (strlen($value) > $max_length) {
+                            error_log("Database Import Pro: Default value '$value' exceeds maximum length $max_length for field '$field_name'");
+                            return false;
+                        }
+                    }
+                    return true;
+                    
+                case 'text':
+                case 'tinytext':
+                case 'mediumtext':
+                case 'longtext':
+                    // Text fields accept any string
+                    return true;
+                    
+                case 'enum':
+                    // Validate against allowed enum values
+                    if ($constraint) {
+                        $enum_values = array_map(function($v) {
+                            return trim($v, "'\"");
+                        }, explode(',', $constraint));
+                        
+                        if (!in_array($value, $enum_values)) {
+                            error_log("Database Import Pro: Default value '$value' not in ENUM values for field '$field_name'");
+                            return false;
+                        }
+                    }
+                    return true;
+                    
+                case 'set':
+                    // SET values can be comma-separated
+                    if ($constraint) {
+                        $set_values = array_map(function($v) {
+                            return trim($v, "'\"");
+                        }, explode(',', $constraint));
+                        
+                        $input_values = explode(',', $value);
+                        foreach ($input_values as $input_val) {
+                            if (!in_array(trim($input_val), $set_values)) {
+                                error_log("Database Import Pro: Default value '$input_val' not in SET values for field '$field_name'");
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                    
+                case 'json':
+                    // Validate JSON
+                    json_decode($value);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        error_log("Database Import Pro: Invalid JSON default value for field '$field_name'");
+                        return false;
+                    }
+                    return true;
+                    
+                case 'blob':
+                case 'tinyblob':
+                case 'mediumblob':
+                case 'longblob':
+                case 'binary':
+                case 'varbinary':
+                    // Binary data - accept any value
+                    return true;
+                    
+                default:
+                    // Unknown type - log warning but allow
+                    error_log("Database Import Pro: Unknown column type '$type' for field '$field_name', skipping validation");
+                    return true;
+            }
+        }
+        
+        // If we can't parse the type, log and allow
+        error_log("Database Import Pro: Could not parse column type '$db_type' for field '$field_name'");
+        return true;
+    }
+
+    /**
      * Save import options before starting import
      */
     public function save_import_options() {
-        check_ajax_referer('aedc_importer_nonce', 'nonce');
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(__('Unauthorized access', 'aedc-importer'));
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
         parse_str($_POST['data'], $form_data);
         
-        $_SESSION['aedc_importer']['import_mode'] = sanitize_text_field($form_data['import_mode']);
-        $_SESSION['aedc_importer']['key_columns'] = isset($form_data['key_columns']) ? array_map('sanitize_text_field', $form_data['key_columns']) : [];
-        $_SESSION['aedc_importer']['allow_null'] = !empty($form_data['allow_null']);
-        $_SESSION['aedc_importer']['dry_run'] = !empty($form_data['dry_run']);
+        dbip_set_import_data('import_mode', sanitize_text_field($form_data['import_mode']));
+        dbip_set_import_data('key_columns', isset($form_data['key_columns']) ? array_map('sanitize_text_field', $form_data['key_columns']) : []);
+        dbip_set_import_data('allow_null', !empty($form_data['allow_null']));
+        dbip_set_import_data('dry_run', !empty($form_data['dry_run']));
 
         wp_send_json_success();
     }

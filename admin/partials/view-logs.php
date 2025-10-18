@@ -3,7 +3,7 @@
  * Import Logs View Template
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    dbip_Importer
  */
 
 // If this file is called directly, abort.
@@ -13,26 +13,26 @@ if (!defined('WPINC')) {
 ?>
 
 <div class="wrap">
-    <h1><?php echo esc_html(get_admin_page_title()); ?> - <?php esc_html_e('Import Logs', 'aedc-importer'); ?></h1>
+    <h1><?php echo esc_html(get_admin_page_title()); ?> - <?php esc_html_e('Import Logs', 'database-import-pro'); ?></h1>
     
     <div class="import-logs-container">
         <table class="wp-list-table widefat fixed striped">
             <thead>
                 <tr>
-                    <th><?php esc_html_e('Date/Time', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('User', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('File Name', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Table', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Total Rows', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Status', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Success Rate', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Duration', 'aedc-importer'); ?></th>
-                    <th><?php esc_html_e('Actions', 'aedc-importer'); ?></th>
+                    <th><?php esc_html_e('Date/Time', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('User', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('File Name', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Table', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Total Rows', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Status', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Success Rate', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Duration', 'database-import-pro'); ?></th>
+                    <th><?php esc_html_e('Actions', 'database-import-pro'); ?></th>
                 </tr>
             </thead>
             <tbody id="import-logs-list">
                 <tr>
-                    <td colspan="9"><?php esc_html_e('Loading...', 'aedc-importer'); ?></td>
+                    <td colspan="9"><?php esc_html_e('Loading...', 'database-import-pro'); ?></td>
                 </tr>
             </tbody>
         </table>
@@ -43,9 +43,9 @@ if (!defined('WPINC')) {
 jQuery(document).ready(function($) {
     // Load import logs
     function loadImportLogs() {
-        $.post(ajaxurl, {
-            action: 'aedc_get_import_logs',
-            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>'
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_get_import_logs',
+            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
         }, function(response) {
             if (response.success && response.data) {
                 const tbody = $('#import-logs-list');
@@ -72,12 +72,12 @@ jQuery(document).ready(function($) {
                 });
             } else {
                 $('#import-logs-list').html(
-                    '<tr><td colspan="9"><?php esc_html_e('No import logs found.', 'aedc-importer'); ?></td></tr>'
+                    '<tr><td colspan="9"><?php esc_html_e('No import logs found.', 'database-import-pro'); ?></td></tr>'
                 );
             }
         }).fail(function() {
             $('#import-logs-list').html(
-                '<tr><td colspan="9"><?php esc_html_e('Error loading import logs.', 'aedc-importer'); ?></td></tr>'
+                '<tr><td colspan="9"><?php esc_html_e('Error loading import logs.', 'database-import-pro'); ?></td></tr>'
             );
         });
     }
@@ -100,14 +100,14 @@ jQuery(document).ready(function($) {
     function getActionButtons(log) {
         let buttons = `
             <button type="button" class="button button-small view-details" data-id="${log.id}">
-                <?php esc_html_e('View Details', 'aedc-importer'); ?>
+                <?php esc_html_e('View Details', 'database-import-pro'); ?>
             </button>
         `;
         
         if (log.failed > 0) {
             buttons += `
                 <button type="button" class="button button-small export-errors" data-id="${log.id}">
-                    <?php esc_html_e('Export Errors', 'aedc-importer'); ?>
+                    <?php esc_html_e('Export Errors', 'database-import-pro'); ?>
                 </button>
             `;
         }
@@ -129,9 +129,9 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.export-errors', function() {
         const logId = $(this).data('id');
         
-        $.post(ajaxurl, {
-            action: 'aedc_export_error_log',
-            nonce: '<?php echo wp_create_nonce('aedc_importer_nonce'); ?>',
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_export_error_log',
+            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>',
             log_id: logId
         }, function(response) {
             if (response.success && response.data) {
@@ -146,10 +146,10 @@ jQuery(document).ready(function($) {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
             } else {
-                alert('<?php esc_html_e('Failed to export error log.', 'aedc-importer'); ?>');
+                alert('<?php esc_html_e('Failed to export error log.', 'database-import-pro'); ?>');
             }
         }).fail(function() {
-            alert('<?php esc_html_e('Error exporting log file.', 'aedc-importer'); ?>');
+            alert('<?php esc_html_e('Error exporting log file.', 'database-import-pro'); ?>');
         });
     });
 

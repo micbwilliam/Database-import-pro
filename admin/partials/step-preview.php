@@ -3,7 +3,7 @@
  * Step 4: Preview & Confirm Template
  *
  * @since      1.0.0
- * @package    AEDC_Importer
+ * @package    dbip_Importer
  */
 
 // If this file is called directly, abort.
@@ -12,35 +12,35 @@ if (!defined('WPINC')) {
 }
 
 // Get the mapping and preview data from session
-$mapping = isset($_SESSION['aedc_importer']['mapping']) ? $_SESSION['aedc_importer']['mapping'] : array();
-$preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['aedc_importer']['preview_data'] : array();
+$mapping = isset($_SESSION['dbip_importer']['mapping']) ? $_SESSION['dbip_importer']['mapping'] : array();
+$preview_data = isset($_SESSION['dbip_importer']['preview_data']) ? $_SESSION['dbip_importer']['preview_data'] : array();
 ?>
 
-<div class="aedc-step-content step-preview">
-    <h2><?php esc_html_e('Preview & Confirm Import', 'aedc-importer'); ?></h2>
+<div class="dbip-step-content step-preview">
+    <h2><?php esc_html_e('Preview & Confirm Import', 'database-import-pro'); ?></h2>
     
     <div class="preview-container">
         <div class="preview-summary">
-            <h3><?php esc_html_e('Import Summary', 'aedc-importer'); ?></h3>
+            <h3><?php esc_html_e('Import Summary', 'database-import-pro'); ?></h3>
             <ul>
                 <li>
-                    <strong><?php esc_html_e('Target Table:', 'aedc-importer'); ?></strong>
-                    <?php echo esc_html($_SESSION['aedc_importer']['target_table']); ?>
+                    <strong><?php esc_html_e('Target Table:', 'database-import-pro'); ?></strong>
+                    <?php echo esc_html($_SESSION['dbip_importer']['target_table']); ?>
                 </li>
                 <li>
-                    <strong><?php esc_html_e('Total Records:', 'aedc-importer'); ?></strong>
-                    <?php echo esc_html(isset($_SESSION['aedc_importer']['total_records']) ? $_SESSION['aedc_importer']['total_records'] : 0); ?>
+                    <strong><?php esc_html_e('Total Records:', 'database-import-pro'); ?></strong>
+                    <?php echo esc_html(isset($_SESSION['dbip_importer']['total_records']) ? $_SESSION['dbip_importer']['total_records'] : 0); ?>
                 </li>
                 <li>
-                    <strong><?php esc_html_e('Mapped Fields:', 'aedc-importer'); ?></strong>
+                    <strong><?php esc_html_e('Mapped Fields:', 'database-import-pro'); ?></strong>
                     <?php echo esc_html(count(array_filter($mapping, function($m) { return !empty($m['csv_field']); }))); ?>
                 </li>
             </ul>
         </div>
 
         <div class="preview-data">
-            <h3><?php esc_html_e('Data Preview', 'aedc-importer'); ?></h3>
-            <p class="description"><?php esc_html_e('Showing first 5 rows of data after applying mappings and transformations', 'aedc-importer'); ?></p>
+            <h3><?php esc_html_e('Data Preview', 'database-import-pro'); ?></h3>
+            <p class="description"><?php esc_html_e('Showing first 5 rows of data after applying mappings and transformations', 'database-import-pro'); ?></p>
             
             <div class="preview-table-container">
                 <table class="preview-table">
@@ -68,7 +68,7 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
         </div>
 
         <div class="preview-validation">
-            <h3><?php esc_html_e('Data Validation', 'aedc-importer'); ?></h3>
+            <h3><?php esc_html_e('Data Validation', 'database-import-pro'); ?></h3>
             <div class="validation-summary">
                 <div class="validation-errors"></div>
                 <div class="validation-warnings"></div>
@@ -77,16 +77,16 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                 <table class="preview-table">
                     <thead>
                         <tr>
-                            <th><?php esc_html_e('Column', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('Sample Data', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('Expected Type', 'aedc-importer'); ?></th>
-                            <th><?php esc_html_e('Status', 'aedc-importer'); ?></th>
+                            <th><?php esc_html_e('Column', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('Sample Data', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('Expected Type', 'database-import-pro'); ?></th>
+                            <th><?php esc_html_e('Status', 'database-import-pro'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php
                         global $wpdb;
-                        $table = $_SESSION['aedc_importer']['target_table'];
+                        $table = $_SESSION['dbip_importer']['target_table'];
                         $columns = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`");
                         foreach ($columns as $column) :
                             $mapped_field = $mapping[$column->Field]['csv_field'] ?? '';
@@ -102,10 +102,10 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                             if (!empty($sample_data)) {
                                 $valid = validate_field_type($sample_data, $column->Type);
                                 $type_class = $valid ? 'valid' : 'invalid';
-                                $status_message = $valid ? __('Valid', 'aedc-importer') : __('Invalid Type', 'aedc-importer');
+                                $status_message = $valid ? __('Valid', 'database-import-pro') : __('Invalid Type', 'database-import-pro');
                             } elseif ($is_required) {
                                 $type_class = 'required';
-                                $status_message = __('Required Field', 'aedc-importer');
+                                $status_message = __('Required Field', 'database-import-pro');
                             }
                         ?>
                             <tr class="<?php echo esc_attr($type_class); ?>">
@@ -130,36 +130,36 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
         </div>
 
         <div class="preview-validation">
-            <h3><?php esc_html_e('Validation Results', 'aedc-importer'); ?></h3>
+            <h3><?php esc_html_e('Validation Results', 'database-import-pro'); ?></h3>
             <div id="validation-results">
-                <p class="loading"><?php esc_html_e('Validating data...', 'aedc-importer'); ?></p>
+                <p class="loading"><?php esc_html_e('Validating data...', 'database-import-pro'); ?></p>
             </div>
         </div>
 
         <div class="preview-actions">
-            <form id="aedc-preview-form" method="post">
-                <?php wp_nonce_field('aedc_importer_nonce', 'aedc_nonce'); ?>
+            <form id="dbip-preview-form" method="post">
+                <?php wp_nonce_field('dbip_importer_nonce', 'dbip_nonce'); ?>
                 
                 <div class="import-options">
-                    <h4><?php esc_html_e('Import Mode', 'aedc-importer'); ?></h4>
+                    <h4><?php esc_html_e('Import Mode', 'database-import-pro'); ?></h4>
                     <div class="import-mode-options">
                         <label>
                             <input type="radio" name="import_mode" value="insert" checked />
-                            <?php esc_html_e('Insert Only (Skip existing records)', 'aedc-importer'); ?>
+                            <?php esc_html_e('Insert Only (Skip existing records)', 'database-import-pro'); ?>
                         </label>
                         <label>
                             <input type="radio" name="import_mode" value="update" />
-                            <?php esc_html_e('Update Only (Update existing records)', 'aedc-importer'); ?>
+                            <?php esc_html_e('Update Only (Update existing records)', 'database-import-pro'); ?>
                         </label>
                         <label>
                             <input type="radio" name="import_mode" value="upsert" />
-                            <?php esc_html_e('Insert & Update (Create new or update existing)', 'aedc-importer'); ?>
+                            <?php esc_html_e('Insert & Update (Create new or update existing)', 'database-import-pro'); ?>
                         </label>
                     </div>
 
                     <div id="key-columns-selection" style="display: none; margin-top: 15px;">
-                        <h4><?php esc_html_e('Key Columns', 'aedc-importer'); ?></h4>
-                        <p class="description"><?php esc_html_e('Select columns to identify existing records', 'aedc-importer'); ?></p>
+                        <h4><?php esc_html_e('Key Columns', 'database-import-pro'); ?></h4>
+                        <p class="description"><?php esc_html_e('Select columns to identify existing records', 'database-import-pro'); ?></p>
                         <?php
                         foreach ($columns as $column) :
                             $is_key = $column->Key === 'PRI' || $column->Key === 'UNI';
@@ -172,20 +172,20 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
                         <?php endforeach; ?>
                     </div>
 
-                    <h4><?php esc_html_e('Import Options', 'aedc-importer'); ?></h4>
+                    <h4><?php esc_html_e('Import Options', 'database-import-pro'); ?></h4>
                     <label>
                         <input type="checkbox" name="allow_null" checked />
-                        <?php esc_html_e('Allow NULL values for nullable fields', 'aedc-importer'); ?>
+                        <?php esc_html_e('Allow NULL values for nullable fields', 'database-import-pro'); ?>
                     </label>
                     <label>
                         <input type="checkbox" name="dry_run" />
-                        <?php esc_html_e('Dry run (validate without importing)', 'aedc-importer'); ?>
+                        <?php esc_html_e('Dry run (validate without importing)', 'database-import-pro'); ?>
                     </label>
                 </div>
 
                 <div class="button-group">
-                    <a href="<?php echo esc_url(add_query_arg('step', '3')); ?>" class="button button-secondary"><?php esc_html_e('Back to Mapping', 'aedc-importer'); ?></a>
-                    <button type="submit" class="button button-primary" id="start-import"><?php esc_html_e('Start Import', 'aedc-importer'); ?></button>
+                    <a href="<?php echo esc_url(add_query_arg('step', '3')); ?>" class="button button-secondary"><?php esc_html_e('Back to Mapping', 'database-import-pro'); ?></a>
+                    <button type="submit" class="button button-primary" id="start-import"><?php esc_html_e('Start Import', 'database-import-pro'); ?></button>
                 </div>
             </form>
         </div>
@@ -195,9 +195,9 @@ $preview_data = isset($_SESSION['aedc_importer']['preview_data']) ? $_SESSION['a
 <script>
 jQuery(document).ready(function($) {
     // Validate data on page load
-    $.post(ajaxurl, {
-        action: 'aedc_validate_import_data',
-        nonce: $('#aedc_nonce').val()
+    $.post(dbipImporter.ajax_url, {
+        action: 'dbip_validate_import_data',
+        nonce: $('#dbip_nonce').val()
     }, function(response) {
         if (response.success) {
             $('#validation-results').html(response.data);
@@ -231,13 +231,13 @@ jQuery(document).ready(function($) {
         
         if (errors.length) {
             $errorContainer.append('<h4 class="error-title">' + 
-                '<?php esc_html_e('Validation Errors', 'aedc-importer'); ?>' + '</h4>');
+                '<?php esc_html_e('Validation Errors', 'database-import-pro'); ?>' + '</h4>');
             $errorContainer.append('<ul><li>' + errors.join('</li><li>') + '</li></ul>');
         }
         
         if (warnings.length) {
             $warningContainer.append('<h4 class="warning-title">' + 
-                '<?php esc_html_e('Warnings', 'aedc-importer'); ?>' + '</h4>');
+                '<?php esc_html_e('Warnings', 'database-import-pro'); ?>' + '</h4>');
             $warningContainer.append('<ul><li>' + warnings.join('</li><li>') + '</li></ul>');
         }
 
@@ -249,10 +249,10 @@ jQuery(document).ready(function($) {
     updateValidationSummary();
 
     // Handle form submission
-    $('#aedc-preview-form').on('submit', function(e) {
+    $('#dbip-preview-form').on('submit', function(e) {
         e.preventDefault();
         
-        if (!confirm('<?php esc_html_e('Are you sure you want to proceed with the import?', 'aedc-importer'); ?>')) {
+        if (!confirm('<?php esc_html_e('Are you sure you want to proceed with the import?', 'database-import-pro'); ?>')) {
             return;
         }
 
@@ -260,25 +260,25 @@ jQuery(document).ready(function($) {
         const formData = $(this).serialize();
 
         // First validate data
-        $.post(ajaxurl, {
-            action: 'aedc_validate_import_data',
-            nonce: $('#aedc_nonce').val()
+        $.post(dbipImporter.ajax_url, {
+            action: 'dbip_validate_import_data',
+            nonce: $('#dbip_nonce').val()
         }, function(validateResponse) {
             if (!validateResponse.success) {
-                alert('<?php esc_html_e('Data validation failed. Please fix the errors and try again.', 'aedc-importer'); ?>');
+                alert('<?php esc_html_e('Data validation failed. Please fix the errors and try again.', 'database-import-pro'); ?>');
                 return;
             }
 
             // Then save import options
-            $.post(ajaxurl, {
-                action: 'aedc_save_import_options',
+            $.post(dbipImporter.ajax_url, {
+                action: 'dbip_save_import_options',
                 data: formData,
-                nonce: $('#aedc_nonce').val()
+                nonce: $('#dbip_nonce').val()
             }, function(response) {
                 if (response.success) {
                     window.location.href = window.location.href.replace(/step=\d/, 'step=5');
                 } else {
-                    alert(response.data || '<?php esc_html_e('Failed to save import options. Please try again.', 'aedc-importer'); ?>');
+                    alert(response.data || '<?php esc_html_e('Failed to save import options. Please try again.', 'database-import-pro'); ?>');
                 }
             });
         });
@@ -312,7 +312,7 @@ jQuery(document).ready(function($) {
         const mode = $('input[name="import_mode"]:checked').val();
         if ((mode === 'update' || mode === 'upsert') && !$('input[name="key_columns[]"]:checked').length) {
             $(this).prop('checked', true);
-            alert('<?php esc_html_e('At least one key column must be selected for Update or Insert & Update mode.', 'aedc-importer'); ?>');
+            alert('<?php esc_html_e('At least one key column must be selected for Update or Insert & Update mode.', 'database-import-pro'); ?>');
         }
     });
 });

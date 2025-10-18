@@ -2,7 +2,7 @@ jQuery(document).ready(function($) {
     // File Upload Handling
     const dropArea = $('#drop-area');
     const fileInput = $('#csv-file');
-    const uploadForm = $('#aedc-upload-form');
+    const uploadForm = $('#dbip-upload-form');
     const uploadPreview = $('.upload-preview');
     const fileNameDisplay = $('.file-name');
     const removeFileBtn = $('.remove-file');
@@ -105,10 +105,10 @@ jQuery(document).ready(function($) {
         }
 
         const formData = new FormData(uploadForm[0]);
-        formData.append('action', 'aedc_upload_csv');
+        formData.append('action', 'dbip_upload_csv');
 
         $.ajax({
-            url: aedcImporter.ajax_url,
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: formData,
             processData: false,
