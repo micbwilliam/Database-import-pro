@@ -1,0 +1,49 @@
+{
+    "name": "michaelbwilliam/database-import-pro",
+    "description": "Enterprise-grade CSV and Excel to database importer for WordPress",
+    "type": "wordpress-plugin",
+    "keywords": ["wordpress", "plugin", "import", "csv", "excel", "database"],
+    "homepage": "https://michaelbwilliam.com/database-import-pro",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Michael B. William",
+            "email": "contact@michaelbwilliam.com",
+            "homepage": "https://michaelbwilliam.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "phpoffice/phpspreadsheet": "^1.29"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "mockery/mockery": "^1.5",
+        "brain/monkey": "^2.6",
+        "squizlabs/php_codesniffer": "^3.7",
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "DatabaseImportPro\\": "includes/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DatabaseImportPro\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:coverage": "phpunit --coverage-html coverage",
+        "phpcs": "phpcs --standard=WordPress includes/",
+        "phpcbf": "phpcbf --standard=WordPress includes/",
+        "phpstan": "phpstan analyse includes/ --level=5"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}
