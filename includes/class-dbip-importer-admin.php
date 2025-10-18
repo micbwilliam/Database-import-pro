@@ -89,6 +89,16 @@ class DBIP_Importer_Admin {
             'dbip-importer-logs',
             array($this, 'display_logs_page')
         );
+
+        // Add system status submenu
+        add_submenu_page(
+            'dbip-importer',
+            __('System Status', 'database-import-pro'),
+            __('System Status', 'database-import-pro'),
+            'manage_options',
+            'dbip-importer-status',
+            array($this, 'display_status_page')
+        );
     }
 
     /**
@@ -98,11 +108,35 @@ class DBIP_Importer_Admin {
         add_action('admin_menu', array($this, 'add_plugin_admin_menu'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_styles'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
+        add_action('admin_notices', array($this, 'show_capability_notice'));
         
         // AJAX handlers
         add_action('wp_ajax_dbip_upload_csv', array($this, 'handle_csv_upload'));
         add_action('wp_ajax_dbip_save_mapping', array($this, 'save_field_mapping'));
         add_action('wp_ajax_dbip_process_import', array($this, 'process_import'));
+    }
+
+    /**
+     * Show capability notice in admin
+     *
+     * @since 1.1.0
+     */
+    public function show_capability_notice() {
+        $screen = get_current_screen();
+        if (strpos($screen->id, 'dbip-importer') === false) {
+            return;
+        }
+
+        // Load system checker
+        require_once DBIP_IMPORTER_PLUGIN_DIR . 'includes/class-dbip-importer-system-check.php';
+        
+        $notice = DBIP_Importer_System_Check::get_capability_notice();
+        
+        printf(
+            '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+            esc_attr($notice['type']),
+            wp_kses_post($notice['message'])
+        );
     }
 
     /**
@@ -121,6 +155,15 @@ class DBIP_Importer_Admin {
      */
     public function display_logs_page() {
         include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/view-logs.php';
+    }
+
+    /**
+     * Render the system status page for this plugin.
+     *
+     * @since    1.1.0
+     */
+    public function display_status_page() {
+        include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/system-status.php';
     }
 
     /**

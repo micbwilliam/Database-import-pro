@@ -9,19 +9,11 @@
 class DBIP_Importer_Uploader {
     /**
      * Allowed file types and their MIME types
+     * Dynamically populated based on server capabilities
      *
      * @var array
      */
-    private $allowed_types = array(
-        'csv' => array(
-            'text/csv',
-            'text/plain',
-            'application/csv',
-            'text/comma-separated-values',
-            'text/x-comma-separated-values',
-            'text/x-csv'
-        )
-    );
+    private $allowed_types = array();
 
     /**
      * Maximum file size in bytes (50MB)
@@ -44,6 +36,12 @@ class DBIP_Importer_Uploader {
         $upload_base = wp_upload_dir();
         $this->upload_dir = trailingslashit($upload_base['basedir']) . 'database-import-pro';
 
+        // Load system checker
+        require_once DBIP_IMPORTER_PLUGIN_DIR . 'includes/class-dbip-importer-system-check.php';
+
+        // Set allowed types based on server capabilities
+        $this->set_allowed_types();
+
         // Create directory if it doesn't exist
         if (!file_exists($this->upload_dir)) {
             wp_mkdir_p($this->upload_dir);
@@ -53,6 +51,53 @@ class DBIP_Importer_Uploader {
         add_action('wp_ajax_dbip_upload_file', array($this, 'handle_upload'));
         add_action('wp_ajax_dbip_get_headers', array($this, 'get_file_headers'));
         add_action('wp_ajax_dbip_store_headers', array($this, 'store_headers'));
+        add_action('wp_ajax_dbip_get_system_capabilities', array($this, 'get_system_capabilities'));
+    }
+
+    /**
+     * Set allowed file types based on server capabilities
+     *
+     * @return void
+     */
+    private function set_allowed_types(): void {
+        $formats = DBIP_Importer_System_Check::get_supported_formats();
+        
+        foreach ($formats as $key => $format) {
+            if ($format['available']) {
+                $this->allowed_types[$key] = $format['mime_types'];
+            }
+        }
+    }
+
+    /**
+     * Get system capabilities for AJAX
+     *
+     * @return void
+     */
+    public function get_system_capabilities(): void {
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
+        }
+
+        $notice = DBIP_Importer_System_Check::get_capability_notice();
+        $formats = DBIP_Importer_System_Check::get_supported_formats();
+        $extensions = array();
+        
+        foreach ($formats as $format) {
+            if ($format['available']) {
+                $extensions[] = $format['extension'];
+            }
+        }
+
+        wp_send_json_success(array(
+            'notice' => $notice,
+            'formats' => $formats,
+            'extensions' => $extensions,
+            'accept_attribute' => DBIP_Importer_System_Check::get_accept_attribute(),
+            'supported_list' => DBIP_Importer_System_Check::get_supported_extensions_string()
+        ));
     }
 
     /**
@@ -86,7 +131,11 @@ class DBIP_Importer_Uploader {
 
             // Validate file extension
             if (!array_key_exists($ext, $this->allowed_types)) {
-                throw new Exception(__('Invalid file type. Please upload a CSV file.', 'database-import-pro'));
+                $supported = DBIP_Importer_System_Check::get_supported_extensions_string();
+                throw new Exception(sprintf(
+                    __('Invalid file type. Supported formats: %s', 'database-import-pro'),
+                    $supported
+                ));
             }
 
             // Validate file size

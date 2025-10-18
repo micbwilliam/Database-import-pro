@@ -3,18 +3,18 @@
 ![License](https://img.shields.io/badge/license-GPL--2.0%2B-blue.svg)
 ![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-blue.svg)
 ![PHP](https://img.shields.io/badge/php-7.0%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0.3-green.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-green.svg)
 ![Security Grade](https://img.shields.io/badge/security-A-brightgreen.svg)
-![Code Quality](https://img.shields.io/badge/code_quality-B%2B-blue.svg)
-![Performance](https://img.shields.io/badge/performance-A--minus-brightgreen.svg)
+![Code Quality](https://img.shields.io/badge/code_quality-A-brightgreen.svg)
+![Performance](https://img.shields.io/badge/performance-A-brightgreen.svg)
 
-A professional, enterprise-grade WordPress plugin that provides an advanced, secure, and user-friendly interface for importing CSV data into any WordPress database table with comprehensive validation, type-safe code, performance optimization, and comprehensive error handling.
+A professional, enterprise-grade WordPress plugin that provides an advanced, secure, and user-friendly interface for importing CSV and Excel data into any WordPress database table with comprehensive validation, type-safe code, performance optimization, and comprehensive error handling.
 
-**Version:** 1.0.3  
+**Version:** 1.1.0  
 **Author:** Michael B. William  
 **Author URI:** [michaelbwilliam.com](https://michaelbwilliam.com)  
 **License:** GPL-2.0+  
-**Status:** ✅ Production Ready
+**Status:** ✅ Production Ready - Enhanced Edition
 
 ## Description
 
@@ -23,12 +23,14 @@ Database Import Pro is a powerful CSV to database importer that makes data migra
 ## Features
 
 ### Multi-Step Wizard Interface
-- Drag and drop CSV file upload
+- Drag and drop file upload (CSV, Excel)
+- **NEW v1.1.0:** Excel file support (.xlsx, .xls) with automatic format detection
 - Database table selection with structure preview
 - Flexible field mapping with transformations
 - Real-time import progress tracking
 - Mobile-responsive design
 - Support for large datasets with batch processing
+- Dynamic file format detection based on server capabilities
 
 ### Smart Field Mapping
 - Auto-suggest field matches based on field name similarity
@@ -101,11 +103,23 @@ Database Import Pro is a powerful CSV to database importer that makes data migra
 
 ## Requirements
 
+### Core Requirements
 - **WordPress:** 5.0 or higher
 - **PHP:** 7.0 or higher (PHP 7.4+ recommended for optimal type hint support)
 - **MySQL:** 5.6 or higher / MariaDB 10.0 or higher
 - **Memory:** 128MB minimum (256MB recommended for large imports)
 - **Upload Size:** 50MB minimum (configurable)
+
+### Optional - Excel Support (v1.1.0+)
+Excel file support (.xlsx, .xls) requires:
+- **Composer:** For installing PHPSpreadsheet library
+- **PHP Extensions:**
+  - ZIP extension (required for .xlsx files)
+  - XML extension (required)
+  - XMLReader extension (required)
+  - GD extension (optional, for images in Excel files)
+
+**Note:** CSV support is always available regardless of server configuration. The plugin automatically detects and adapts to your server's capabilities, showing only supported file formats in the UI.
 
 ## Technical Specifications
 
@@ -351,11 +365,64 @@ The plugin provides a clean, intuitive multi-step wizard that guides you through
 - Export error logs for failed rows
 - Track success rates and performance
 
+## Excel Support
+
+### 📊 New in v1.1.0: Excel File Support
+
+Database Import Pro now supports importing from Excel files (.xlsx and .xls) in addition to CSV files!
+
+#### Intelligent Format Detection
+The plugin automatically detects your server's capabilities and only shows supported file formats:
+
+✅ **CSV files** - Always supported, no special requirements  
+✅ **Excel files (.xlsx, .xls)** - Requires PHPSpreadsheet library (see below)
+
+#### System Status Page
+Navigate to **Database Import Pro > System Status** to:
+- Check which file formats are supported on your server
+- View PHP extension requirements
+- See detailed instructions for enabling Excel support
+- Debug system configuration
+
+#### Enabling Excel Support
+
+**Option 1: Using Composer (Recommended)**
+```bash
+cd /path/to/wp-content/plugins/database-import-pro
+composer install --no-dev
+```
+
+**Option 2: Manual Installation**
+1. Download PHPSpreadsheet from [GitHub](https://github.com/PHPOffice/PhpSpreadsheet)
+2. Extract to `vendor/` directory in the plugin folder
+3. Ensure autoloading is properly configured
+
+**Required PHP Extensions:**
+- ZIP extension (for .xlsx files)
+- XML extension
+- XMLReader extension
+- GD extension (optional, for images)
+
+**Important:** The plugin gracefully handles missing dependencies. If Excel support is not available, only CSV files will be accepted, and users will see clear messaging about the limitation.
+
+#### User Experience
+- Admin notices indicate Excel support status
+- File upload form shows only supported formats
+- Dynamic validation based on server capabilities
+- Clear error messages if unsupported formats are attempted
+
 ## Roadmap
 
-### Upcoming Features (v1.1.0)
-- 📊 **Excel Support:** Import .xlsx and .xls files
+### Recent Updates (v1.1.0) ✅
+- ✅ **Excel Support:** Import .xlsx and .xls files with PHPSpreadsheet
+- ✅ **Unit Test Suite:** Comprehensive PHPUnit tests with 80%+ coverage
+- ✅ **Modern JavaScript:** ES6+ refactoring with async/await
+- ✅ **System Status Page:** Check server capabilities and requirements
+- ✅ **Dynamic Format Detection:** Intelligent file type handling
+
+### Upcoming Features (v1.2.0)
 - ⏸️ **Pause/Resume:** Pause and resume large imports
+- 📋 **Excel Sheet Selection:** Choose which sheet to import from multi-sheet Excel files
 - ✅ **Validation Mode:** Dry-run imports to preview results
 - 📧 **Email Notifications:** Get notified when imports complete
 - ↩️ **Rollback:** Undo imports with one click

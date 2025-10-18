@@ -29,7 +29,12 @@ if (!defined('WPINC')) {
                     <span class="dashicons dashicons-upload"></span>
                     <p><?php esc_html_e('Drag and drop your file here', 'database-import-pro'); ?></p>
                     <p><?php esc_html_e('or', 'database-import-pro'); ?></p>
-                    <input type="file" name="file" id="file-input" accept=".csv" class="file-input" />
+                    <?php
+                    // Dynamically set accepted file types
+                    require_once DBIP_IMPORTER_PLUGIN_DIR . 'includes/class-dbip-importer-system-check.php';
+                    $accept_attr = DBIP_Importer_System_Check::get_accept_attribute();
+                    ?>
+                    <input type="file" name="file" id="file-input" accept="<?php echo esc_attr($accept_attr); ?>" class="file-input" />
                     <label for="file-input" class="button button-primary"><?php esc_html_e('Select File', 'database-import-pro'); ?></label>
                 </div>
                 <div class="upload-preview" style="display: none;">
@@ -68,7 +73,21 @@ if (!defined('WPINC')) {
     <div class="upload-requirements">
         <h3><?php esc_html_e('File Requirements', 'database-import-pro'); ?></h3>
         <ul>
-            <li><?php esc_html_e('Accepted format: CSV', 'database-import-pro'); ?></li>
+            <li>
+                <?php
+                $supported_formats = DBIP_Importer_System_Check::get_supported_formats();
+                $format_labels = array();
+                foreach ($supported_formats as $format) {
+                    if ($format['available']) {
+                        $format_labels[] = '<strong>' . esc_html($format['label']) . '</strong> (' . esc_html($format['description']) . ')';
+                    }
+                }
+                printf(
+                    __('Accepted formats: %s', 'database-import-pro'),
+                    implode(', ', $format_labels)
+                );
+                ?>
+            </li>
             <li><?php esc_html_e('Maximum file size: 50MB', 'database-import-pro'); ?></li>
             <li><?php esc_html_e('UTF-8 encoding recommended', 'database-import-pro'); ?></li>
             <li><?php esc_html_e('First row should contain column headers', 'database-import-pro'); ?></li>
@@ -218,17 +237,33 @@ jQuery(document).ready(function($) {
         }
     }
 
+    // Store supported formats (will be populated from server)
+    let supportedFormats = {
+        extensions: ['.csv'],
+        list: 'CSV'
+    };
+
+    // Get system capabilities on page load
+    $.post(dbipImporter.ajax_url, {
+        action: 'dbip_get_system_capabilities',
+        nonce: dbipImporter.nonce
+    }, function(response) {
+        if (response.success && response.data) {
+            supportedFormats = {
+                extensions: response.data.extensions || ['.csv'],
+                list: response.data.supported_list || 'CSV'
+            };
+            console.log('Supported formats:', supportedFormats);
+        }
+    });
+
     function validateFile(file) {
-        const allowedTypes = [
-            'text/csv',
-            'text/plain',
-            'application/csv'
-        ];
         const maxSize = 50 * 1024 * 1024; // 50MB
 
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (ext !== 'csv') {
-            showError('Please upload a CSV file.');
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!supportedFormats.extensions.includes(ext)) {
+            showError('Invalid file type. Supported formats: ' + supportedFormats.list);
             return false;
         }
 
