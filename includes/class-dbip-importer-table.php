@@ -17,8 +17,10 @@ class DBIP_Importer_Table {
 
     /**
      * Get table structure with caching
+     * 
+     * @return void
      */
-    public function get_table_structure() {
+    public function get_table_structure(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -122,7 +124,7 @@ class DBIP_Importer_Table {
      * 
      * @return array Array of table names
      */
-    private function get_database_tables() {
+    private function get_database_tables(): array {
         global $wpdb;
         
         // Get all tables in the database
@@ -143,8 +145,10 @@ class DBIP_Importer_Table {
 
     /**
      * Save target table selection
+     * 
+     * @return void
      */
-    public function save_target_table() {
+    public function save_target_table(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {

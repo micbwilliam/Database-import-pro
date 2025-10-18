@@ -28,8 +28,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Save mapping template
+     * 
+     * @return void
      */
-    public function save_template() {
+    public function save_template(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -57,8 +59,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Load mapping template
+     * 
+     * @return void
      */
-    public function load_template() {
+    public function load_template(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -77,8 +81,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Get all mapping templates
+     * 
+     * @return void
      */
-    public function get_templates() {
+    public function get_templates(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -91,8 +97,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Delete mapping template
+     * 
+     * @return void
      */
-    public function delete_template() {
+    public function delete_template(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -112,8 +120,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Auto-suggest field mapping based on similarity
+     * 
+     * @return void
      */
-    public function auto_suggest_mapping() {
+    public function auto_suggest_mapping(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -149,8 +159,12 @@ class DBIP_Importer_Mapping {
 
     /**
      * Calculate similarity between two strings
+     * 
+     * @param string $str1 First string
+     * @param string $str2 Second string
+     * @return float Similarity score (0.0 to 1.0)
      */
-    private function calculate_similarity($str1, $str2) {
+    private function calculate_similarity(string $str1, string $str2): float {
         // Convert to lowercase and remove special characters
         $str1 = preg_replace('/[^a-z0-9]/', '', strtolower($str1));
         $str2 = preg_replace('/[^a-z0-9]/', '', strtolower($str2));
@@ -165,8 +179,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Save field mapping
+     * 
+     * @return void
      */
-    public function save_field_mapping() {
+    public function save_field_mapping(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -499,8 +515,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Validate import data
+     * 
+     * @return void
      */
-    public function validate_import_data() {
+    public function validate_import_data(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -954,8 +972,10 @@ class DBIP_Importer_Mapping {
 
     /**
      * Save import options before starting import
+     * 
+     * @return void
      */
-    public function save_import_options() {
+    public function save_import_options(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {

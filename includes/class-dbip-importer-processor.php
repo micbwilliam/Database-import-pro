@@ -26,7 +26,7 @@ class DBIP_Importer_Processor {
      * 
      * @return bool True if lock acquired, false if another import is running
      */
-    private function acquire_import_lock() {
+    private function acquire_import_lock(): bool {
         $lock_key = 'dbip_import_lock_' . get_current_user_id();
         $lock_timeout = 3600; // 1 hour
         
@@ -50,8 +50,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Release the import lock
+     * 
+     * @return void
      */
-    private function release_import_lock() {
+    private function release_import_lock(): void {
         $lock_key = 'dbip_import_lock_' . get_current_user_id();
         delete_transient($lock_key);
         error_log('Database Import Pro: Import lock released for user ' . get_current_user_id());
@@ -62,7 +64,7 @@ class DBIP_Importer_Processor {
      * 
      * @return bool True if locked, false otherwise
      */
-    private function is_import_locked() {
+    private function is_import_locked(): bool {
         $lock_key = 'dbip_import_lock_' . get_current_user_id();
         return get_transient($lock_key) !== false;
     }
@@ -72,7 +74,7 @@ class DBIP_Importer_Processor {
      * 
      * @return array Array with 'available' (bool) and 'message' (string) keys
      */
-    private function check_memory_availability() {
+    private function check_memory_availability(): array {
         // Get memory limit
         $memory_limit = ini_get('memory_limit');
         if ($memory_limit === '-1') {
@@ -124,7 +126,7 @@ class DBIP_Importer_Processor {
      * @param string $value Memory value (e.g., '256M', '1G')
      * @return int Memory in bytes
      */
-    private function convert_to_bytes($value) {
+    private function convert_to_bytes(string $value): int {
         $value = trim($value);
         $last = strtolower($value[strlen($value) - 1]);
         $value = (int)$value;
@@ -145,8 +147,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Process a batch of records
+     * 
+     * @return void
      */
-    public function process_batch() {
+    public function process_batch(): void {
         try {
             error_log('Database Import Pro Importer: Starting batch processing');
             
@@ -351,8 +355,16 @@ class DBIP_Importer_Processor {
 
     /**
      * Process a single row
+     * 
+     * @param array $row_data CSV row data
+     * @param string $table Target database table name
+     * @param array $mapping Column mappings
+     * @param string $import_mode Import mode (insert, update, upsert)
+     * @param array $key_columns Key columns for matching
+     * @param bool $allow_null Whether to allow null values
+     * @return array Processing result with status and message
      */
-    private function process_row($row_data, $table, $mapping, $import_mode, $key_columns, $allow_null) {
+    private function process_row(array $row_data, string $table, array $mapping, string $import_mode, array $key_columns, bool $allow_null): array {
         global $wpdb;
         
         try {
@@ -482,8 +494,12 @@ class DBIP_Importer_Processor {
 
     /**
      * Validate that all required fields have values
+     * 
+     * @param string $table Database table name
+     * @param array $data Row data to validate
+     * @return bool True if valid, false otherwise
      */
-    private function validate_required_fields($table, $data) {
+    private function validate_required_fields(string $table, array $data): bool {
         global $wpdb;
         
         // Get table structure
@@ -510,8 +526,13 @@ class DBIP_Importer_Processor {
 
     /**
      * Check if a record exists based on key columns
+     * 
+     * @param string $table Database table name
+     * @param array $data Row data with key values
+     * @param array $key_columns Column names to use for matching
+     * @return bool True if record exists, false otherwise
      */
-    private function record_exists($table, $data, $key_columns) {
+    private function record_exists(string $table, array $data, array $key_columns): bool {
         global $wpdb;
         
         if (empty($key_columns)) {
@@ -535,8 +556,13 @@ class DBIP_Importer_Processor {
 
     /**
      * Apply data transformation
+     * 
+     * @param string $value Value to transform
+     * @param string $transform Transformation type
+     * @param string $custom_code Custom code (deprecated for security)
+     * @return string Transformed value
      */
-    private function apply_transformation($value, $transform, $custom_code = '') {
+    private function apply_transformation(string $value, string $transform, string $custom_code = ''): string {
         switch ($transform) {
             case 'trim':
                 return trim($value);
@@ -558,8 +584,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Clean up uploaded file after import completion
+     * 
+     * @return void
      */
-    private function cleanup_import_file() {
+    private function cleanup_import_file(): void {
         $file_info = dbip_get_import_data('file');
         if ($file_info && isset($file_info['path'])) {
             $file_path = $file_info['path'];
@@ -573,8 +601,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Cancel import and clean up
+     * 
+     * @return void
      */
-    public function cancel_import() {
+    public function cancel_import(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -598,8 +628,12 @@ class DBIP_Importer_Processor {
 
     /**
      * Save import log to database
+     * 
+     * @param array $stats Import statistics
+     * @param string $error_log Error messages
+     * @return int|false Insert ID on success, false on failure
      */
-    private function save_import_log($stats, $error_log = '') {
+    private function save_import_log(array $stats, string $error_log = '') {
         global $wpdb;
         
         error_log('Database Import Pro Importer Debug: Starting save_import_log');
@@ -661,8 +695,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Get all import logs with pagination
+     * 
+     * @return void
      */
-    public function get_import_logs() {
+    public function get_import_logs(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         global $wpdb;
@@ -709,8 +745,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Export failed rows as CSV
+     * 
+     * @return void
      */
-    public function export_error_log() {
+    public function export_error_log(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!isset($_POST['log_id'])) {
@@ -746,8 +784,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Save import progress in session
+     * 
+     * @return void
      */
-    public function save_import_progress() {
+    public function save_import_progress(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
         
         if (!isset($_POST['stats']) || !isset($_POST['percentage'])) {
@@ -764,8 +804,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Save import start time
+     * 
+     * @return void
      */
-    public function save_import_start() {
+    public function save_import_start(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
         dbip_set_import_data('start_time', wp_date('Y-m-d H:i:s', null, wp_timezone()));
         wp_send_json_success();
@@ -773,8 +815,10 @@ class DBIP_Importer_Processor {
 
     /**
      * Create the import logs table
+     * 
+     * @return void
      */
-    private function create_logs_table() {
+    private function create_logs_table(): void {
         global $wpdb;
         
         error_log('Database Import Pro Importer Debug: Creating logs table');

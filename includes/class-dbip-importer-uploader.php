@@ -57,8 +57,10 @@ class DBIP_Importer_Uploader {
 
     /**
      * Handle file upload
+     * 
+     * @return void
      */
-    public function handle_upload() {
+    public function handle_upload(): void {
         try {
             check_ajax_referer('dbip_importer_nonce', 'nonce');
 
@@ -418,8 +420,10 @@ class DBIP_Importer_Uploader {
 
     /**
      * Store CSV headers in session
+     * 
+     * @return void
      */
-    public function store_headers() {
+    public function store_headers(): void {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -442,8 +446,10 @@ class DBIP_Importer_Uploader {
 
     /**
      * Clean up temporary files
+     * 
+     * @return void
      */
-    public function cleanup() {
+    public function cleanup(): void {
         $file_info = dbip_get_import_data('file');
         if ($file_info && isset($file_info['path'])) {
             @unlink($file_info['path']);
