@@ -69,13 +69,14 @@ if (!defined('WPINC')) {
 
         <!-- Navigation Buttons -->
         <div class="dbip-wizard-navigation">
-            <?php if ($this->current_step > 1) : ?>
+            <?php if ($this->current_step > 1 && $this->current_step < 6) : ?>
                 <a href="<?php echo esc_url(add_query_arg('step', $this->current_step - 1)); ?>" class="button button-secondary"><?php esc_html_e('Previous', 'database-import-pro'); ?></a>
             <?php endif; ?>
-
-            <?php if ($this->current_step < 6) : ?>
-                <a href="<?php echo esc_url(add_query_arg('step', $this->current_step + 1)); ?>" class="button button-primary"><?php esc_html_e('Next', 'database-import-pro'); ?></a>
-            <?php endif; ?>
+            
+            <?php
+            // Note: Each step has its own submit button for validation.
+            // Generic "Next" button removed to prevent bypassing validation.
+            ?>
         </div>
     </div>
 </div> 

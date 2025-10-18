@@ -109,11 +109,27 @@ class DBIP_Importer_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_styles'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_scripts'));
         add_action('admin_notices', array($this, 'show_capability_notice'));
+        add_action('admin_init', array($this, 'validate_step_access'));
+    }
+
+    /**
+     * Validate step access on admin_init (before any output)
+     *
+     * @since 1.0.4
+     */
+    public function validate_step_access() {
+        // Only check on our plugin page
+        if (!isset($_GET['page']) || $_GET['page'] !== 'dbip-importer') {
+            return;
+        }
+
+        $current_step = isset($_GET['step']) ? sanitize_text_field($_GET['step']) : 'upload';
         
-        // AJAX handlers
-        add_action('wp_ajax_dbip_upload_csv', array($this, 'handle_csv_upload'));
-        add_action('wp_ajax_dbip_save_mapping', array($this, 'save_field_mapping'));
-        add_action('wp_ajax_dbip_process_import', array($this, 'process_import'));
+        if (!$this->can_access_step($current_step)) {
+            // Redirect to upload step if user tries to access invalid step
+            wp_safe_redirect(admin_url('admin.php?page=dbip-importer&step=upload'));
+            exit;
+        }
     }
 
     /**
@@ -140,11 +156,58 @@ class DBIP_Importer_Admin {
     }
 
     /**
+     * Check if user can access a specific step
+     *
+     * @param string $step Current step
+     * @return bool
+     */
+    private function can_access_step($step) {
+        // Step 1 (upload) is always accessible
+        if ($step === 'upload' || empty($step)) {
+            return true;
+        }
+
+        // Step 2 (select-table) requires uploaded file
+        if ($step === 'select-table') {
+            $file_path = dbip_get_import_data('file_path');
+            // Verify file path exists AND file actually exists on disk
+            return !empty($file_path) && file_exists($file_path);
+        }
+
+        // Step 3 (map-fields) requires selected table
+        if ($step === 'map-fields') {
+            $target_table = dbip_get_import_data('target_table');
+            return !empty($target_table);
+        }
+
+        // Step 4 (preview) requires field mapping
+        if ($step === 'preview') {
+            $mapping = dbip_get_import_data('mapping');
+            return !empty($mapping) && is_array($mapping);
+        }
+
+        // Step 5 (import) requires mapping
+        if ($step === 'import') {
+            $mapping = dbip_get_import_data('mapping');
+            return !empty($mapping) && is_array($mapping);
+        }
+
+        // Step 6 (completion) requires import stats
+        if ($step === 'completion') {
+            $stats = dbip_get_import_data('import_stats');
+            return !empty($stats);
+        }
+
+        return false;
+    }
+
+    /**
      * Render the admin page for this plugin.
      *
      * @since    1.0.0
      */
     public function display_plugin_admin_page() {
+        // Step validation is handled in validate_step_access() on admin_init
         include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/dbip-importer-admin-display.php';
     }
 
@@ -164,47 +227,5 @@ class DBIP_Importer_Admin {
      */
     public function display_status_page() {
         include_once DBIP_IMPORTER_PLUGIN_DIR . 'admin/partials/system-status.php';
-    }
-
-    /**
-     * Handle CSV file upload
-     */
-    public function handle_csv_upload() {
-        check_ajax_referer('dbip_importer_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized access');
-        }
-
-        // Handle file upload logic here
-        wp_send_json_success(array('message' => 'File uploaded successfully'));
-    }
-
-    /**
-     * Save field mapping
-     */
-    public function save_field_mapping() {
-        check_ajax_referer('dbip_importer_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized access');
-        }
-
-        // Handle field mapping logic here
-        wp_send_json_success(array('message' => 'Mapping saved successfully'));
-    }
-
-    /**
-     * Process the import
-     */
-    public function process_import() {
-        check_ajax_referer('dbip_importer_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized access');
-        }
-
-        // Handle import process logic here
-        wp_send_json_success(array('message' => 'Import completed successfully'));
     }
 }

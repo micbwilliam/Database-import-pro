@@ -13,15 +13,16 @@ if (!defined('WPINC')) {
 
 // Get the selected table structure
 global $wpdb;
-$table = isset($_SESSION['dbip_importer']['target_table']) ? $_SESSION['dbip_importer']['target_table'] : '';
+$table = dbip_get_import_data('target_table') ?: '';
 $columns = $wpdb->get_results("SHOW COLUMNS FROM {$table}");
 
 // Get CSV headers from the uploaded file
-$csv_headers = isset($_SESSION['dbip_importer']['headers']) ? $_SESSION['dbip_importer']['headers'] : array();
+$csv_headers = dbip_get_import_data('headers') ?: array();
 
 // Add debug output
 if (empty($csv_headers)) {
-    error_log('Database Import Pro Debug: CSV headers are empty. Session data: ' . print_r($_SESSION['dbip_importer'], true));
+    $import_data = dbip_get_import_data();
+    error_log('Database Import Pro Debug: CSV headers are empty. Import data: ' . print_r($import_data, true));
 }
 ?>
 

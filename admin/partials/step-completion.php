@@ -11,7 +11,7 @@ if (!defined('WPINC')) {
     die;
 }
 
-$import_stats = isset($_SESSION['dbip_importer']['import_stats']) ? $_SESSION['dbip_importer']['import_stats'] : array(
+$import_stats = dbip_get_import_data('import_stats') ?: array(
     'processed' => 0,
     'inserted' => 0,
     'updated' => 0,
@@ -74,12 +74,12 @@ $has_errors = isset($import_stats['failed']) && $import_stats['failed'] > 0;
                 </p>
                 <p>
                     <strong><?php esc_html_e('Target Table:', 'database-import-pro'); ?></strong>
-                    <?php echo esc_html($_SESSION['dbip_importer']['target_table']); ?>
+                    <?php echo esc_html(dbip_get_import_data('target_table')); ?>
                 </p>
             </div>
         </div>
 
-        <?php if ($has_errors && isset($_SESSION['dbip_importer']['error_log'])) : ?>
+        <?php if ($has_errors && dbip_get_import_data('error_log')) : ?>
             <div class="completion-errors">
                 <h3>
                     <span class="dashicons dashicons-warning"></span>
@@ -95,7 +95,10 @@ $has_errors = isset($import_stats['failed']) && $import_stats['failed'] > 0;
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($_SESSION['dbip_importer']['error_log'] as $error) : ?>
+                            <?php 
+                            $error_log = dbip_get_import_data('error_log') ?: array();
+                            foreach ($error_log as $error) : 
+                            ?>
                                 <tr>
                                     <td><?php echo esc_html($error['row']); ?></td>
                                     <td><?php echo esc_html($error['message']); ?></td>

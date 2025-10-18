@@ -425,7 +425,8 @@ jQuery(document).ready(function($) {
                 }
                 showError(errorMessage);
                 removeFile();
-                submitButton.prop('disabled', false).text('Upload and Continue');
+                // Keep button disabled after error - user must select a new file
+                submitButton.prop('disabled', true).text('Upload and Continue');
             }
         });
     }

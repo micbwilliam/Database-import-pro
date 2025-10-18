@@ -1,4 +1,29 @@
 jQuery(document).ready(function($) {
+    // Global AJAX Error Handler
+    $(document).ajaxError(function(event, jqxhr, settings, thrownError) {
+        // Don't handle errors for status checks (they fail gracefully)
+        if (settings.data && settings.data.includes('dbip_get_import_status')) {
+            return;
+        }
+        
+        console.error('AJAX Error:', {
+            url: settings.url,
+            status: jqxhr.status,
+            statusText: jqxhr.statusText,
+            error: thrownError,
+            response: jqxhr.responseText
+        });
+        
+        // Show user-friendly error message
+        if (jqxhr.status === 0) {
+            alert('Network error. Please check your connection and try again.');
+        } else if (jqxhr.status === 403) {
+            alert('Session expired. Please refresh the page and try again.');
+        } else if (jqxhr.status === 500) {
+            alert('Server error. Please try again or contact support.');
+        }
+    });
+    
     // File Upload Handling
     const dropArea = $('#drop-area');
     const fileInput = $('#csv-file');

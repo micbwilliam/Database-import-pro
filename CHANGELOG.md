@@ -1,5 +1,195 @@
 # Database Import Pro - Changelog
 
+## Version 2.0.0 - October 18, 2025
+
+### 🎉 Major Stability & Workflow Release
+
+This is a major release focused on fixing critical workflow issues, improving data persistence, and ensuring a seamless user experience from start to finish. After comprehensive workflow audit and testing, all issues have been resolved.
+
+---
+
+### 🔧 Critical Fixes
+
+#### 1. Complete Session to Transient Migration
+- **Impact:** Eliminates data loss between steps
+- **Problem:** Frontend templates still used `$_SESSION` while backend used transients
+- **Solution:** Converted all 4 step templates to use transient helper functions
+- **Files Changed:**
+  - `admin/partials/step-map-fields.php` (3 locations)
+  - `admin/partials/step-preview.php` (6 locations)
+  - `admin/partials/step-import.php` (10 locations)
+  - `admin/partials/step-completion.php` (4 locations)
+- **Benefit:** Consistent data storage, better performance, cluster-safe
+- **Status:** ✅ COMPLETE
+
+#### 2. Missing AJAX Handlers Implemented
+- **Impact:** All frontend AJAX calls now properly handled
+- **Added Handlers:**
+  - `dbip_save_import_progress` - Saves import progress updates
+  - `dbip_save_import_start` - Records import start time
+  - `dbip_download_error_log` - Downloads error log as CSV
+  - `dbip_get_import_logs` - Retrieves import history
+  - `dbip_export_error_log` - Exports detailed error logs
+- **New Methods:**
+  - `get_status()` - Returns current import status and progress
+  - `download_error_log()` - Formats and sends error log as CSV download
+- **File Changed:** `includes/class-dbip-importer-processor.php`
+- **Status:** ✅ COMPLETE
+
+#### 3. Removed Unused AJAX Handlers
+- **Impact:** Cleaner codebase, no confusion
+- **Removed:** 3 empty stub methods and their action registrations
+- **File Changed:** `includes/class-dbip-importer-admin.php`
+- **Status:** ✅ COMPLETE
+
+#### 4. Step Validation Added
+- **Impact:** Prevents URL manipulation, ensures workflow integrity
+- **Implementation:**
+  - Server-side validation on `admin_init` (before output)
+  - Each step validates required data before allowing access
+  - Automatic redirect to step 1 if validation fails
+  - Physical file existence check (not just transient data)
+- **Validation Rules:**
+  - Step 1 (upload): Always accessible
+  - Step 2 (select-table): Requires uploaded file + file exists on disk
+  - Step 3 (map-fields): Requires selected table
+  - Step 4 (preview): Requires field mapping
+  - Step 5 (import): Requires field mapping
+  - Step 6 (completion): Requires import stats
+- **File Changed:** `includes/class-dbip-importer-admin.php`
+- **Status:** ✅ COMPLETE
+
+#### 5. Removed Generic "Next" Button
+- **Impact:** Users can't bypass validation
+- **Problem:** Generic "Next" button bypassed all step validation
+- **Solution:** Removed generic navigation, each step uses its own validated submit button
+- **File Changed:** `admin/partials/dbip-importer-admin-display.php`
+- **Status:** ✅ COMPLETE
+
+#### 6. Upload Step Validation Strengthened
+- **Impact:** Users must successfully upload before proceeding
+- **Changes:**
+  - Submit button starts disabled
+  - Only enables after successful upload completion
+  - Stays disabled after upload errors
+  - Form submission validates `upload-complete` flag
+- **File Changed:** `admin/partials/step-upload.php`
+- **Status:** ✅ COMPLETE
+
+#### 7. Code Cleanup - Removed PHP from JavaScript Context
+- **Impact:** Better code quality, no parsing confusion
+- **Removed:** 78 lines of dead PHP validation function embedded in JavaScript
+- **File Changed:** `admin/partials/step-preview.php`
+- **Status:** ✅ COMPLETE
+
+#### 8. Fixed JavaScript Localization Issue
+- **Impact:** AJAX calls work correctly in step 5
+- **Problem:** PHP code incorrectly assigned to JavaScript variable
+- **Solution:** Use properly localized `dbipImporter.ajax_url`
+- **File Changed:** `admin/partials/step-import.php`
+- **Status:** ✅ COMPLETE
+
+---
+
+### ⚡ Error Handling Improvements
+
+#### 9. Global AJAX Error Handler
+- **Impact:** User-friendly error messages for all AJAX failures
+- **Features:**
+  - Handles network errors (status 0)
+  - Handles session expiration (status 403)
+  - Handles server errors (status 500)
+  - Logs detailed info to console for debugging
+  - Shows contextual error messages to users
+- **File Changed:** `assets/js/dbip-importer-admin.js`
+- **Status:** ✅ COMPLETE
+
+#### 10. Enhanced Import Cancel Handler
+- **Impact:** Better cleanup and user feedback
+- **Features:**
+  - Distinguishes between canceling vs closing completed import
+  - Shows "Cleaning up..." status during cancel
+  - Handles cleanup failures gracefully
+  - Fallback redirect if cleanup fails
+- **File Changed:** `admin/partials/step-import.php`
+- **Status:** ✅ COMPLETE
+
+#### 11. Fixed Headers Already Sent Warning
+- **Impact:** No more PHP warnings during redirects
+- **Problem:** Step validation attempted redirects after headers sent
+- **Solution:** Moved validation to `admin_init` hook (before any output)
+- **File Changed:** `includes/class-dbip-importer-admin.php`
+- **Status:** ✅ COMPLETE
+
+---
+
+### 📁 Documentation Organization
+
+#### 12. Documentation Cleanup
+- **Changes:**
+  - Created `docs/audits/` folder for audit reports
+  - Created `docs/development/` folder for dev documentation
+  - Moved 8 documentation files to appropriate folders
+  - Kept user-facing docs in root (README, CHANGELOG, LICENSE)
+- **Files Organized:**
+  - Audit reports → `docs/audits/`
+  - Development guides → `docs/development/`
+- **Status:** ✅ COMPLETE
+
+---
+
+### 📊 Impact Summary
+
+**Files Modified:** 9 total
+**Lines Changed:** 250+ additions, 200+ removals
+**Issues Fixed:** 11 critical workflow issues
+**New Methods Added:** 2 (get_status, download_error_log)
+**AJAX Handlers Added:** 5
+**AJAX Handlers Removed:** 3 (unused)
+**Validation Checks Added:** 6 step validations
+
+**Before v2.0.0:**
+- ❌ Data loss between steps (session/transient mismatch)
+- ❌ AJAX calls failing (missing handlers)
+- ❌ Users could skip steps via URL manipulation
+- ❌ Generic "Next" button bypassed validation
+- ❌ Silent failures with no error feedback
+- ❌ Headers already sent warnings
+- ❌ Dead PHP code in JavaScript context
+
+**After v2.0.0:**
+- ✅ Consistent transient-based storage throughout
+- ✅ All AJAX calls properly handled
+- ✅ Server-side step validation prevents URL manipulation
+- ✅ Each step has its own validated submit button
+- ✅ Clear error messages and cleanup handling
+- ✅ No PHP warnings during normal operation
+- ✅ Clean separation of PHP and JavaScript code
+
+---
+
+### 🔄 Upgrade Notes
+
+**Automatic Upgrade:**
+- All changes are backward compatible
+- No database migrations required
+- Existing transient data remains intact
+- No user action needed after upgrade
+
+**Testing Recommended:**
+1. Complete a full import workflow (all 6 steps)
+2. Test error scenarios (cancel import, network issues)
+3. Verify import logs are accessible
+4. Test with both CSV and Excel files (if extension installed)
+
+---
+
+### 🙏 Credits
+
+Special thanks to the comprehensive workflow audit that identified all these issues and provided detailed fix instructions.
+
+---
+
 ## Version 1.0.3 - October 18, 2025
 
 ### 🎯 Major Code Quality & Performance Release

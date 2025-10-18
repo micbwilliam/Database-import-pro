@@ -19,6 +19,32 @@ class DBIP_Importer_Processor {
         add_action('wp_ajax_dbip_process_import_batch', array($this, 'process_batch'));
         add_action('wp_ajax_dbip_get_import_status', array($this, 'get_status'));
         add_action('wp_ajax_dbip_cancel_import', array($this, 'cancel_import'));
+        add_action('wp_ajax_dbip_save_import_progress', array($this, 'save_import_progress'));
+        add_action('wp_ajax_dbip_save_import_start', array($this, 'save_import_start'));
+        add_action('wp_ajax_dbip_download_error_log', array($this, 'download_error_log'));
+        add_action('wp_ajax_dbip_get_import_logs', array($this, 'get_import_logs'));
+        add_action('wp_ajax_dbip_export_error_log', array($this, 'export_error_log'));
+    }
+
+    /**
+     * Get current import status
+     * 
+     * @return void
+     */
+    public function get_status(): void {
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
+        }
+
+        $status = array(
+            'is_running' => $this->is_import_locked(),
+            'progress' => dbip_get_import_data('progress') ?: 0,
+            'stats' => dbip_get_import_data('import_stats') ?: array()
+        );
+
+        wp_send_json_success($status);
     }
 
     /**
@@ -811,6 +837,35 @@ class DBIP_Importer_Processor {
         check_ajax_referer('dbip_importer_nonce', 'nonce');
         dbip_set_import_data('start_time', wp_date('Y-m-d H:i:s', null, wp_timezone()));
         wp_send_json_success();
+    }
+
+    /**
+     * Download error log from completed import
+     * 
+     * @return void
+     */
+    public function download_error_log(): void {
+        check_ajax_referer('dbip_importer_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
+        }
+
+        // Get error log from transient
+        $error_log = dbip_get_import_data('error_log');
+        
+        if (empty($error_log)) {
+            wp_send_json_error(__('No error log found', 'database-import-pro'));
+            return;
+        }
+
+        // Format as CSV
+        $csv_content = "Row,Error Message\n";
+        foreach ($error_log as $error) {
+            $csv_content .= '"' . esc_attr($error['row']) . '","' . esc_attr($error['message']) . "\"\n";
+        }
+
+        wp_send_json_success($csv_content);
     }
 
     /**

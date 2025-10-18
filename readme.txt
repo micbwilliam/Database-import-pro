@@ -1,15 +1,14 @@
 === Database Import Pro ===
 Contributors: michaelbwilliam
-Donate link: https://michaelbwilliam.com/donate
-Tags: csv, import, database, data, importer, bulk, batch, migration, upload, admin
+Tags: csv, excel, import, database, data, importer, bulk, batch, migration, upload, admin
 Requires at least: 5.0
-Tested up to: 6.4
-Requires PHP: 7.0
-Stable tag: 1.0.3
+Tested up to: 6.7
+Requires PHP: 7.4
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Enterprise-grade CSV to database importer with type-safe code, performance optimization, smart field mapping, and comprehensive security (Grade A).
+Enterprise-grade CSV and Excel importer with robust workflow validation, transient-based storage, and enhanced error handling for reliable database imports.
 
 == Description ==
 

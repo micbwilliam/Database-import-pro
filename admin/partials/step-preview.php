@@ -11,9 +11,9 @@ if (!defined('WPINC')) {
     die;
 }
 
-// Get the mapping and preview data from session
-$mapping = isset($_SESSION['dbip_importer']['mapping']) ? $_SESSION['dbip_importer']['mapping'] : array();
-$preview_data = isset($_SESSION['dbip_importer']['preview_data']) ? $_SESSION['dbip_importer']['preview_data'] : array();
+// Get the mapping and preview data from transient
+$mapping = dbip_get_import_data('mapping') ?: array();
+$preview_data = dbip_get_import_data('preview_data') ?: array();
 ?>
 
 <div class="dbip-step-content step-preview">
@@ -25,15 +25,18 @@ $preview_data = isset($_SESSION['dbip_importer']['preview_data']) ? $_SESSION['d
             <ul>
                 <li>
                     <strong><?php esc_html_e('Target Table:', 'database-import-pro'); ?></strong>
-                    <?php echo esc_html($_SESSION['dbip_importer']['target_table']); ?>
+                    <?php echo esc_html(dbip_get_import_data('target_table')); ?>
                 </li>
                 <li>
                     <strong><?php esc_html_e('Total Records:', 'database-import-pro'); ?></strong>
-                    <?php echo esc_html(isset($_SESSION['dbip_importer']['total_records']) ? $_SESSION['dbip_importer']['total_records'] : 0); ?>
+                    <?php echo esc_html(dbip_get_import_data('total_records') ?: 0); ?>
                 </li>
                 <li>
                     <strong><?php esc_html_e('Mapped Fields:', 'database-import-pro'); ?></strong>
-                    <?php echo esc_html(count(array_filter($mapping, function($m) { return !empty($m['csv_field']); }))); ?>
+                    <?php 
+                    $mapping_data = dbip_get_import_data('mapping') ?: array();
+                    echo esc_html(count(array_filter($mapping_data, function($m) { return !empty($m['csv_field']); })));
+                    ?>
                 </li>
             </ul>
         </div>
@@ -86,7 +89,7 @@ $preview_data = isset($_SESSION['dbip_importer']['preview_data']) ? $_SESSION['d
                     <tbody>
                         <?php
                         global $wpdb;
-                        $table = $_SESSION['dbip_importer']['target_table'];
+                        $table = dbip_get_import_data('target_table');
                         $columns = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`");
                         foreach ($columns as $column) :
                             $mapped_field = $mapping[$column->Field]['csv_field'] ?? '';
@@ -316,83 +319,6 @@ jQuery(document).ready(function($) {
         }
     });
 });
-
-// Add helper function for data type validation
-<?php
-function validate_field_type($value, $db_type) {
-    global $mapping;
-    
-    // Handle special case for "Keep Current Data"
-    if ($value === '[CURRENT DATA]') {
-        return true;
-    }
-    
-    // Handle special case for empty values
-    if ($value === '' || $value === null) {
-        return true;
-    }
-
-    // Extract base type and length/values
-    if (preg_match('/^([a-z]+)(\(([^)]+)\))?/', strtolower($db_type), $matches)) {
-        $type = $matches[1];
-        $constraint = $matches[3] ?? '';
-        
-        switch ($type) {
-            case 'tinyint':
-                // Special handling for boolean (tinyint(1))
-                if ($constraint === '1') {
-                    if (is_bool($value)) return true;
-                    if (is_numeric($value)) return in_array((int)$value, [0, 1]);
-                    $val = strtolower(trim($value));
-                    return in_array($val, ['0', '1', 'true', 'false', 'yes', 'no']);
-                }
-                // Fall through to regular int validation if not tinyint(1)
-            case 'int':
-            case 'smallint':
-            case 'mediumint':
-            case 'bigint':
-                return is_numeric($value) && strpos($value, '.') === false;
-            
-            case 'decimal':
-            case 'float':
-            case 'double':
-                return is_numeric($value);
-            
-            case 'date':
-                return strtotime($value) !== false;
-            
-            case 'datetime':
-            case 'timestamp':
-                // Accept CURRENT_TIMESTAMP and other MySQL datetime functions
-                $special_values = ['CURRENT_TIMESTAMP', 'NOW()', 'CURRENT_TIMESTAMP()', 'NOW'];
-                if (in_array(strtoupper($value), $special_values)) {
-                    return true;
-                }
-                return strtotime($value) !== false;
-            
-            case 'time':
-                return preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/', $value);
-            
-            case 'year':
-                return is_numeric($value) && strlen($value) === 4;
-            
-            case 'char':
-            case 'varchar':
-                $max_length = (int)$constraint;
-                return strlen($value) <= $max_length;
-            
-            case 'enum':
-            case 'set':
-                $allowed_values = array_map('trim', explode(',', str_replace("'", '', $constraint)));
-                return in_array($value, $allowed_values);
-            
-            default:
-                return true;
-        }
-    }
-    return true;
-}
-?>
 </script>
 
 <style>

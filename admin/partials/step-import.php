@@ -11,21 +11,23 @@ if (!defined('WPINC')) {
     die;
 }
 
-// Debug session data
-error_log('Database Import Pro Debug - Session data at import start: ' . print_r($_SESSION['dbip_importer'], true));
+// Debug import data
+$import_data = dbip_get_import_data();
+error_log('Database Import Pro Debug - Import data at start: ' . print_r($import_data, true));
 
-$total_records = isset($_SESSION['dbip_importer']['total_records']) ? $_SESSION['dbip_importer']['total_records'] : 0;
-$import_mode = isset($_SESSION['dbip_importer']['import_mode']) ? $_SESSION['dbip_importer']['import_mode'] : 'insert';
+$total_records = dbip_get_import_data('total_records') ?: 0;
+$import_mode = dbip_get_import_data('import_mode') ?: 'insert';
 
-// Verify required session data
-if (!isset($_SESSION['dbip_importer']['file']) || 
-    !isset($_SESSION['dbip_importer']['mapping']) || 
-    !isset($_SESSION['dbip_importer']['target_table'])) {
+// Verify required import data
+if (!dbip_get_import_data('file') || 
+    !dbip_get_import_data('mapping') || 
+    !dbip_get_import_data('target_table')) {
     wp_die(__('Missing required import data. Please go back and complete all previous steps.', 'database-import-pro'));
 }
 
 // Verify file exists
-if (!file_exists($_SESSION['dbip_importer']['file']['path'])) {
+$file_info = dbip_get_import_data('file');
+if (!$file_info || !file_exists($file_info['path'])) {
     wp_die(__('Import file not found. Please restart the import process.', 'database-import-pro'));
 }
 ?>
@@ -101,8 +103,7 @@ if (!file_exists($_SESSION['dbip_importer']['file']['path'])) {
 </div>
 
 <?php
-// Initialize variables for JavaScript
-$dbipImporter.ajax_url = admin_url('admin-ajax.php');
+// JavaScript localization is handled by wp_localize_script in main plugin file
 $nonce = wp_create_nonce('dbip_importer_nonce');
 ?>
 
@@ -133,7 +134,7 @@ jQuery(document).ready(function($) {
         console.log('Database Import Pro: Processing batch', currentBatch);
 
         $.ajax({
-            url: '<?php echo $dbipImporter.ajax_url; ?>',
+            url: dbipImporter.ajax_url,
             type: 'POST',
             data: {
                 action: 'dbip_process_import_batch',
@@ -256,15 +257,37 @@ jQuery(document).ready(function($) {
 
     // Handle cancel
     $('#cancel-import').on('click', function() {
+        const isComplete = $(this).text().trim() === '<?php esc_html_e('Close', 'database-import-pro'); ?>';
+        
+        // If import is complete, just navigate away
+        if (isComplete) {
+            window.location.href = '<?php echo esc_url(add_query_arg('step', '6')); ?>';
+            return;
+        }
+        
+        // Otherwise, confirm cancellation
         if (confirm('<?php esc_html_e('Are you sure you want to cancel the import?', 'database-import-pro'); ?>')) {
             importCancelled = true;
             addLogEntry('<?php esc_html_e('Import cancelled by user', 'database-import-pro'); ?>', 'error');
             
+            // Disable cancel button during cleanup
+            $(this).prop('disabled', true).text('<?php esc_html_e('Cleaning up...', 'database-import-pro'); ?>');
+            
             $.post(dbipImporter.ajax_url, {
                 action: 'dbip_cancel_import',
                 nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
-            }, function() {
+            })
+            .done(function(response) {
+                if (response.success) {
+                    addLogEntry('<?php esc_html_e('Cleanup completed', 'database-import-pro'); ?>', 'info');
+                }
                 window.location.href = '<?php echo esc_url(add_query_arg('step', '4')); ?>';
+            })
+            .fail(function() {
+                addLogEntry('<?php esc_html_e('Cleanup failed. Redirecting...', 'database-import-pro'); ?>', 'warning');
+                setTimeout(function() {
+                    window.location.href = '<?php echo esc_url(add_query_arg('step', '4')); ?>';
+                }, 1500);
             });
         }
     });
