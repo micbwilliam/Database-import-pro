@@ -2,6 +2,10 @@
 /**
  * PHPUnit Bootstrap File
  *
+ * Note: This file uses Brain\Monkey and PHPUnit which are dev dependencies.
+ * Install with: composer install --dev
+ * IDE warnings about "Undefined function/type" are expected until installed.
+ *
  * @package DatabaseImportPro\Tests
  */
 

@@ -2,6 +2,11 @@
 /**
  * Field mapping handler class
  *
+ * Note: This file uses PhpOffice\PhpSpreadsheet for Excel support (optional).
+ * The PhpSpreadsheet library is loaded via Composer and may not be present.
+ * All usage is protected by class_exists() checks, so no runtime errors occur.
+ * IDE warnings about "Undefined type" are expected until you run: composer install
+ *
  * @since      1.0.0
  * @package    DBIP_Importer
  */
@@ -401,6 +406,7 @@ class DBIP_Importer_Mapping {
             // Handle Excel files using PhpSpreadsheet
             if (class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
                 try {
+                    /** @var \PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet */
                     $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_info['path']);
                     $worksheet = $spreadsheet->getActiveSheet();
                     $rows = $worksheet->toArray();
@@ -502,6 +508,7 @@ class DBIP_Importer_Mapping {
             }
         } else if (($type === 'xlsx' || $type === 'xls') && class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
             try {
+                /** @var \PhpOffice\PhpSpreadsheet\Spreadsheet $spreadsheet */
                 $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
                 $worksheet = $spreadsheet->getActiveSheet();
                 $count = $worksheet->getHighestRow() - 1; // Subtract header row

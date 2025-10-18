@@ -2,6 +2,10 @@
 /**
  * Tests for DBIP_Importer_Uploader class
  *
+ * Note: Uses PHPUnit, Mockery, Brain\Monkey (dev dependencies).
+ * Install with: composer install --dev
+ * IDE warnings are expected until installed. This file is test-only.
+ *
  * @package DatabaseImportPro\Tests
  */
 
