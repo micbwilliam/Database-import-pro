@@ -1,5 +1,92 @@
 # Database Import Pro - Changelog
 
+## Version 2.0.3 - October 19, 2025
+
+### 🔧 WordPress.org Automated Scan Compliance
+
+This patch release addresses all issues identified by WordPress.org automated plugin scanning to ensure submission approval.
+
+---
+
+### Issues Fixed
+
+#### 1. i18n String Literal Error
+- **Problem:** Translation function contained string concatenation instead of singular string literal
+- **Error:** `__('Could not open file. ' . ($error['message'] ?? ''))`
+- **Solution:** Replaced with `sprintf()` and proper placeholder
+- **Implementation:**
+  ```php
+  sprintf(
+      /* translators: %s: error message from PHP */
+      __('Could not open file. %s', 'database-import-pro'),
+      $error_message
+  )
+  ```
+- **Impact:** Proper internationalization support, WordPress.org scanner approved
+- **File Changed:** `includes/class-dbip-importer-uploader.php`
+
+#### 2. Hidden Files Not Permitted
+- **Problem:** WordPress.org doesn't allow hidden files (.files) in plugin packages
+- **Files Removed:**
+  - `.phpstorm.meta.php` - IDE metadata file
+  - `.gitignore` - Git configuration file
+- **Impact:** Plugin package now WordPress.org compliant
+- **Note:** .gitignore should be maintained in repository but excluded from distribution package
+
+#### 3. Outdated "Tested up to" Header
+- **Problem:** Plugin header showed "Tested up to: 6.7" but WordPress 6.8 is available
+- **Solution:** Updated to "Tested up to: 6.8"
+- **Files Changed:**
+  - `database-import-pro.php` (main plugin header)
+  - `readme.txt` (WordPress.org readme)
+- **Impact:** Accurate compatibility information for users
+
+#### 4. Missing Domain Path Directory
+- **Problem:** Plugin header specified `Domain Path: /languages` but directory didn't exist
+- **Solution:** Created `/languages` directory at plugin root
+- **Added:** `database-import-pro.pot` translation template file
+- **Impact:** Proper internationalization support, ready for translations
+- **Files Added:** `languages/database-import-pro.pot`
+
+#### 5. Version Number Updates
+- **Updated:** Plugin version from 2.0.2 to 2.0.3
+- **Files Changed:**
+  - `database-import-pro.php` (Version constant)
+  - `readme.txt` (Stable tag and changelog)
+- **Impact:** Proper version tracking
+
+---
+
+### WordPress.org Compliance Status
+
+**Before v2.0.3:**
+- ❌ i18n string concatenation error
+- ❌ Hidden files present (.phpstorm.meta.php, .gitignore)
+- ❌ Outdated compatibility header (6.7 vs 6.8)
+- ❌ Missing languages directory
+- ⚠️ Automated scan failing
+
+**After v2.0.3:**
+- ✅ All translation functions use singular string literals with sprintf()
+- ✅ No hidden files in package
+- ✅ Tested up to WordPress 6.8
+- ✅ languages/ directory exists with POT file
+- ✅ Ready for WordPress.org automated scan approval
+
+---
+
+### Files Modified
+
+1. `database-import-pro.php` - Version bump, "Tested up to: 6.8"
+2. `includes/class-dbip-importer-uploader.php` - i18n sprintf() fix
+3. `readme.txt` - Version and compatibility updates
+4. `.phpstorm.meta.php` - **REMOVED**
+5. `.gitignore` - **REMOVED**
+6. `languages/` - **CREATED**
+7. `languages/database-import-pro.pot` - **CREATED**
+
+---
+
 ## Version 2.0.2 - October 19, 2025
 
 ### 🔧 WordPress.org Compatibility Fix

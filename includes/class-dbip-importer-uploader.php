@@ -411,8 +411,13 @@ class DBIP_Importer_Uploader {
         $handle = @fopen($filepath, 'r');
         if (!$handle) {
             $error = error_get_last();
-            error_log('Database Import Pro Error: Could not open file: ' . $filepath . ' - ' . ($error['message'] ?? 'Unknown error'));
-            return new WP_Error('file_error', __('Could not open file. ' . ($error['message'] ?? ''), 'database-import-pro'));
+            $error_message = isset($error['message']) ? $error['message'] : 'Unknown error';
+            error_log('Database Import Pro Error: Could not open file: ' . $filepath . ' - ' . $error_message);
+            return new WP_Error('file_error', sprintf(
+                /* translators: %s: error message from PHP */
+                __('Could not open file. %s', 'database-import-pro'),
+                $error_message
+            ));
         }
 
         // Try to detect the delimiter

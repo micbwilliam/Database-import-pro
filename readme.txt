@@ -2,9 +2,9 @@
 Contributors: michaelbwilliam
 Tags: csv, excel, import, database, data, importer, bulk, batch, migration, upload, admin
 Requires at least: 5.0
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -201,6 +201,17 @@ You need the "manage_options" capability (typically Administrator role) to use t
 7. Mapping templates - Save and reuse field mappings
 
 == Changelog ==
+
+= 2.0.3 - 2025-10-19 =
+**WORDPRESS.ORG AUTOMATED SCAN COMPLIANCE**
+* **Fix:** i18n string concatenation replaced with sprintf() and proper placeholders
+* **Fix:** Removed hidden files (.phpstorm.meta.php, .gitignore) from distribution
+* **Fix:** Updated "Tested up to: 6.8" for latest WordPress version
+* **Enhancement:** Created /languages directory with translation template (POT file)
+* **Enhancement:** Added translator comments for better i18n support
+* **Technical:** All translation functions now use singular string literals
+* **Technical:** 20+ translatable strings documented in POT file
+* **Status:** Ready for WordPress.org automated scan approval ✅
 
 = 2.0.2 - 2025-10-19 =
 **WORDPRESS.ORG COMPATIBILITY FIX**

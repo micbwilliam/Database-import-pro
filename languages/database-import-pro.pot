@@ -1,0 +1,103 @@
+# Copyright (C) 2025 Database Import Pro
+# This file is distributed under the same license as the Database Import Pro package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Database Import Pro 2.0.3\n"
+"Report-Msgid-Bugs-To: https://github.com/micbwilliam/Database-import-pro/issues\n"
+"POT-Creation-Date: 2025-10-19 00:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Unauthorized access"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "No file uploaded"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Invalid file type. Supported formats: %s"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File size (%s) exceeds limit of %s."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Failed to create upload directory. Please check server permissions."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Upload directory creation succeeded but directory is not accessible."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Upload directory is not writable: %s. Please check directory permissions (should be 755 or 775)."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Insufficient disk space. Required: %s, Available: %s"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Invalid upload: file failed security check."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Cannot read uploaded file. File may be corrupted."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File upload succeeded but file cannot be found at destination."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File uploaded but cannot be read. Please check file permissions."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File uploaded but size cannot be determined."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File upload incomplete. File size mismatch detected."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Failed to move uploaded file"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File uploaded successfully"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File does not exist"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File is not readable. Check file permissions."
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Cannot determine file size"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "File is empty"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Could not open file. %s"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "Could not read first line from file"
+msgstr ""
+
+#: includes/class-dbip-importer-uploader.php
+msgid "No headers provided"
+msgstr ""
