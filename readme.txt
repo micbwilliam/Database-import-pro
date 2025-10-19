@@ -4,7 +4,7 @@ Tags: csv, excel, import, database, data, importer, bulk, batch, migration, uplo
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -201,6 +201,16 @@ You need the "manage_options" capability (typically Administrator role) to use t
 7. Mapping templates - Save and reuse field mappings
 
 == Changelog ==
+
+= 2.0.2 - 2025-10-19 =
+**WORDPRESS.ORG COMPATIBILITY FIX**
+* **Fix:** Plugin URI and Author URI are now different (WordPress.org requirement)
+* **Fix:** Plugin URI points to GitHub repository
+* **Enhancement:** Added "Tested up to: 6.7" header
+* **Enhancement:** Added "Requires Plugins:" header for WordPress 6.5+
+* **Verification:** Full WordPress coding standards compliance
+* **Verification:** All security best practices implemented
+* **Status:** Ready for WordPress.org submission ✅
 
 = 2.0.1 - 2025-10-19 =
 **CRITICAL NAVIGATION FIX**
