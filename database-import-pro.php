@@ -3,7 +3,7 @@
  * Plugin Name: Database Import Pro
  * Plugin URI: https://michaelbwilliam.com
  * Description: Advanced CSV to database importer with field mapping, data transformations, and batch processing for WordPress databases.
- * Version: 2.0.0
+ * Version: 2.0.1
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com
  * License: GPL-2.0+
@@ -20,7 +20,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('DBIP_IMPORTER_VERSION', '2.0.0');
+define('DBIP_IMPORTER_VERSION', '2.0.1');
 define('DBIP_IMPORTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('DBIP_IMPORTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -74,6 +74,129 @@ function dbip_delete_import_data($key = null) {
             set_transient($transient_name, $data, HOUR_IN_SECONDS);
         }
     }
+}
+
+/**
+ * Validate field type helper function
+ * 
+ * @param mixed $value The value to validate
+ * @param string $db_type The database field type (e.g., 'varchar(255)', 'int(11)')
+ * @return bool True if valid, false otherwise
+ */
+function dbip_validate_field_type($value, $db_type) {
+    // Handle special case for empty values and [CURRENT DATA]
+    if ($value === '' || $value === null || $value === '[CURRENT DATA]') {
+        return true;
+    }
+
+    // Extract base type and length/values
+    if (preg_match('/^([a-z]+)(\(([^)]+)\))?/', strtolower($db_type), $matches)) {
+        $type = $matches[1];
+        $constraint = isset($matches[3]) ? $matches[3] : '';
+        
+        switch ($type) {
+            case 'tinyint':
+                // Special handling for boolean (tinyint(1))
+                if ($constraint === '1') {
+                    if (is_bool($value)) return true;
+                    if (is_numeric($value)) return in_array((int)$value, array(0, 1));
+                    $val = strtolower(trim($value));
+                    return in_array($val, array('0', '1', 'true', 'false', 'yes', 'no'));
+                }
+                // Fall through to regular int validation if not tinyint(1)
+            case 'int':
+            case 'smallint':
+            case 'mediumint':
+            case 'bigint':
+                return is_numeric($value) && strpos($value, '.') === false;
+            
+            case 'decimal':
+            case 'float':
+            case 'double':
+                return is_numeric($value);
+            
+            case 'date':
+            case 'datetime':
+            case 'timestamp':
+                // Handle MySQL functions and special values
+                $special_values = array(
+                    'CURRENT_TIMESTAMP', 'CURRENT_TIMESTAMP()',
+                    'NOW()', 'NOW', 'CURRENT_DATE()', 'CURRENT_DATE',
+                    'NULL', 'null'
+                );
+                if (in_array(strtoupper($value), $special_values)) {
+                    return true;
+                }
+                return dbip_validate_date($value);
+            
+            case 'time':
+                return preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $value);
+            
+            case 'year':
+                return is_numeric($value) && strlen($value) === 4;
+            
+            case 'char':
+            case 'varchar':
+                $max_length = (int)$constraint;
+                return $max_length === 0 || strlen($value) <= $max_length;
+            
+            case 'enum':
+            case 'set':
+                $allowed_values = array_map('trim', explode(',', str_replace("'", '', $constraint)));
+                return in_array($value, $allowed_values);
+            
+            default:
+                return true;
+        }
+    }
+    return true;
+}
+
+/**
+ * Validate date format helper function
+ * 
+ * @param string $value The date value to validate
+ * @return bool True if valid date, false otherwise
+ */
+function dbip_validate_date($value) {
+    // First, handle backslash-separated dates by converting them to dashes
+    if (strpos($value, '\\') !== false) {
+        $value = str_replace('\\', '-', $value);
+    }
+
+    // Handle common date/datetime formats
+    $formats = array(
+        // SQL standard formats
+        'Y-m-d H:i:s',
+        'Y-m-d\TH:i:s',
+        'Y-m-d',
+        
+        // Common US formats
+        'm/d/Y H:i:s',
+        'm/d/Y',
+        'm-d-Y H:i:s',
+        'm-d-Y',
+        
+        // Common UK/European formats
+        'd/m/Y H:i:s',
+        'd/m/Y',
+        'd-m-Y H:i:s',
+        'd-m-Y',
+        
+        // Other common formats
+        'Y/m/d H:i:s',
+        'Y/m/d',
+    );
+
+    foreach ($formats as $format) {
+        $date = DateTime::createFromFormat($format, $value);
+        if ($date && $date->format($format) === $value) {
+            return true;
+        }
+    }
+
+    // Try strtotime as a last resort
+    return strtotime($value) !== false;
 }
 
 // Set PHP upload limits - Check if ini_set is available

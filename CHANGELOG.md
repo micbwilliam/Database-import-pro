@@ -1,5 +1,144 @@
 # Database Import Pro - Changelog
 
+## Version 2.0.1 - October 19, 2025
+
+### 🔧 Critical Bug Fixes - Step Navigation
+
+This patch release fixes critical issues preventing users from progressing through the import wizard after uploading files.
+
+---
+
+### Issues Fixed
+
+#### 1. Step Progression from Upload to Select Table
+- **Problem:** After successful file upload, clicking "Continue to Next Step" would refresh the page instead of advancing to step 2
+- **Root Causes:**
+  1. Form submission wasn't being prevented, causing default POST behavior
+  2. URL modification regex wasn't working with WordPress admin URL structure
+  3. Step validation expected text identifiers ('select-table') but received numeric ('2')
+  4. File storage key mismatch caused validation to fail
+- **Files Changed:**
+  - `admin/partials/step-upload.php`
+  - `includes/class-dbip-importer-admin.php`
+
+#### 2. Form Submission Prevention
+- **Solution:** Added `onsubmit="return false;"` to upload form to prevent default submission
+- **Impact:** Form never submits traditionally, JavaScript always handles navigation
+- **File Changed:** `admin/partials/step-upload.php`
+
+#### 3. URL Navigation Fix
+- **Solution:** Replaced simple regex with proper URL parsing and query parameter handling
+- **Implementation:**
+  ```javascript
+  const currentUrl = window.location.href;
+  if (currentUrl.includes('step=')) {
+      window.location.href = currentUrl.replace(/step=\d+/, 'step=2');
+  } else {
+      const separator = currentUrl.includes('?') ? '&' : '?';
+      window.location.href = currentUrl + separator + 'step=2';
+  }
+  ```
+- **Impact:** Properly constructs WordPress admin URLs with correct query parameters
+- **File Changed:** `admin/partials/step-upload.php`
+
+#### 4. Step Validation System Unification
+- **Problem:** Dual step system caused conflicts:
+  - Display code used numeric steps (1, 2, 3...)
+  - Validation code expected text steps ('upload', 'select-table', 'map-fields'...)
+  - When '2' was sent, validation received it as text '2', which didn't match any identifiers
+  - Validation failed and redirected to step 1
+- **Solution:** Updated validation to support BOTH numeric and text step identifiers
+- **Implementation:**
+  - Added step mapping array in `validate_step_access()` to convert numeric to text
+  - Updated `can_access_step()` to accept both formats
+  - Each condition now checks: `$step === 'select-table' || $step === '2'`
+- **Impact:** Step validation now works correctly with numeric step URLs
+- **File Changed:** `includes/class-dbip-importer-admin.php`
+
+#### 5. File Storage Key Mismatch Fix
+- **Problem:** Upload stored file as `'file'` but validation checked for `'file_path'`
+- **Storage Code:**
+  ```php
+  dbip_set_import_data('file', array(
+      'name' => $file['name'],
+      'path' => $filepath,
+      'type' => $ext,
+      'size' => $file['size']
+  ));
+  ```
+- **Validation Code (OLD):**
+  ```php
+  $file_path = dbip_get_import_data('file_path');  // Wrong key!
+  ```
+- **Validation Code (NEW):**
+  ```php
+  $file_info = dbip_get_import_data('file');       // Correct key
+  return !empty($file_info) && isset($file_info['path']) && file_exists($file_info['path']);
+  ```
+- **Impact:** Validation now correctly finds uploaded file and allows progression to step 2
+- **File Changed:** `includes/class-dbip-importer-admin.php`
+
+#### 6. Missing Field Validation Helper Functions
+- **Problem:** `step-preview.php` called `validate_field_type()` as standalone function but it only existed as private method in mapping class
+- **Error:** `Fatal error: Call to undefined function validate_field_type()`
+- **Solution:** Created global helper functions:
+  - `dbip_validate_field_type($value, $db_type)` - Validates CSV value against DB field type
+  - `dbip_validate_date($value)` - Validates multiple date formats
+- **Validation Support:**
+  - Integer types (tinyint, int, smallint, mediumint, bigint)
+  - Decimal types (decimal, float, double)
+  - Date/time types (date, datetime, timestamp, time, year)
+  - String types (char, varchar) with length validation
+  - Enum and set types with allowed values
+  - MySQL special values (CURRENT_TIMESTAMP, NOW(), etc.)
+- **Files Changed:**
+  - `database-import-pro.php` (added helper functions)
+  - `admin/partials/step-preview.php` (updated function call)
+
+---
+
+### Technical Details
+
+**Step Progression Flow (FIXED):**
+1. ✅ File uploads successfully via AJAX
+2. ✅ File info stored with key `'file'` containing path, name, size, type
+3. ✅ Upload complete, button enabled with text "Continue to Next Step"
+4. ✅ User clicks button, form submission prevented
+5. ✅ JavaScript navigates to `?page=dbip-importer&step=2`
+6. ✅ Validation converts '2' to 'select-table' for checking
+7. ✅ Retrieves file info using correct key `'file'`
+8. ✅ Verifies file exists at `$file_info['path']`
+9. ✅ Validation passes, user sees "Select DB Table" page
+
+**Backward Compatibility:**
+- Both numeric (1, 2, 3...) and text ('upload', 'select-table'...) step formats supported
+- Existing code using either format continues to work
+- No breaking changes to AJAX handlers or data storage
+
+---
+
+### Testing Checklist
+
+- [x] File upload completes successfully
+- [x] Progress bar shows 100%
+- [x] Continue button enables after upload
+- [x] Clicking continue navigates to step 2
+- [x] Select DB Table page displays correctly
+- [x] File validation passes (file exists check)
+- [x] Preview page loads without fatal errors
+- [x] Field type validation works correctly
+
+---
+
+### Files Modified
+
+1. `database-import-pro.php` - Version bump, added helper functions
+2. `admin/partials/step-upload.php` - Form submission fix, URL navigation fix
+3. `includes/class-dbip-importer-admin.php` - Step validation unification, file key fix
+4. `admin/partials/step-preview.php` - Updated to use global validation function
+
+---
+
 ## Version 2.0.0 - October 18, 2025
 
 ### 🎉 Major Stability & Workflow Release

@@ -123,11 +123,26 @@ class DBIP_Importer_Admin {
             return;
         }
 
-        $current_step = isset($_GET['step']) ? sanitize_text_field($_GET['step']) : 'upload';
+        $current_step = isset($_GET['step']) ? sanitize_text_field($_GET['step']) : '1';
+        
+        // Convert numeric steps to text identifiers for validation
+        $step_map = array(
+            '1' => 'upload',
+            '2' => 'select-table',
+            '3' => 'map-fields',
+            '4' => 'preview',
+            '5' => 'import',
+            '6' => 'completion'
+        );
+        
+        // If numeric step provided, convert to text identifier
+        if (isset($step_map[$current_step])) {
+            $current_step = $step_map[$current_step];
+        }
         
         if (!$this->can_access_step($current_step)) {
             // Redirect to upload step if user tries to access invalid step
-            wp_safe_redirect(admin_url('admin.php?page=dbip-importer&step=upload'));
+            wp_safe_redirect(admin_url('admin.php?page=dbip-importer&step=1'));
             exit;
         }
     }
@@ -163,37 +178,40 @@ class DBIP_Importer_Admin {
      */
     private function can_access_step($step) {
         // Step 1 (upload) is always accessible
-        if ($step === 'upload' || empty($step)) {
+        if ($step === 'upload' || $step === '1' || empty($step)) {
             return true;
         }
 
         // Step 2 (select-table) requires uploaded file
-        if ($step === 'select-table') {
-            $file_path = dbip_get_import_data('file_path');
-            // Verify file path exists AND file actually exists on disk
-            return !empty($file_path) && file_exists($file_path);
+        if ($step === 'select-table' || $step === '2') {
+            $file_info = dbip_get_import_data('file');
+            // Verify file info exists AND file actually exists on disk
+            if (empty($file_info) || !isset($file_info['path'])) {
+                return false;
+            }
+            return file_exists($file_info['path']);
         }
 
         // Step 3 (map-fields) requires selected table
-        if ($step === 'map-fields') {
+        if ($step === 'map-fields' || $step === '3') {
             $target_table = dbip_get_import_data('target_table');
             return !empty($target_table);
         }
 
         // Step 4 (preview) requires field mapping
-        if ($step === 'preview') {
+        if ($step === 'preview' || $step === '4') {
             $mapping = dbip_get_import_data('mapping');
             return !empty($mapping) && is_array($mapping);
         }
 
         // Step 5 (import) requires mapping
-        if ($step === 'import') {
+        if ($step === 'import' || $step === '5') {
             $mapping = dbip_get_import_data('mapping');
             return !empty($mapping) && is_array($mapping);
         }
 
         // Step 6 (completion) requires import stats
-        if ($step === 'completion') {
+        if ($step === 'completion' || $step === '6') {
             $stats = dbip_get_import_data('import_stats');
             return !empty($stats);
         }

@@ -21,7 +21,7 @@ if (!defined('WPINC')) {
     </div>
 
     <div class="upload-container">
-        <form id="dbip-upload-form" method="post" enctype="multipart/form-data">
+        <form id="dbip-upload-form" method="post" enctype="multipart/form-data" onsubmit="return false;">
             <?php wp_nonce_field('dbip_importer_nonce', 'dbip_nonce'); ?>
             
             <div class="upload-area" id="drop-area">
@@ -193,9 +193,17 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        // Check if file is already uploaded successfully
-        if (submitButton.data('upload-complete')) {
-            window.location.href = window.location.href.replace(/step=\d/, 'step=2');
+        // Always proceed to next step if the button is enabled
+        // (it will only be enabled after successful upload)
+        if (!submitButton.prop('disabled')) {
+            // Use numeric step value (2) as expected by the system
+            const currentUrl = window.location.href;
+            if (currentUrl.includes('step=')) {
+                window.location.href = currentUrl.replace(/step=\d+/, 'step=2');
+            } else {
+                const separator = currentUrl.includes('?') ? '&' : '?';
+                window.location.href = currentUrl + separator + 'step=2';
+            }
             return;
         }
 
@@ -394,8 +402,7 @@ jQuery(document).ready(function($) {
                             statusText.text('Upload completed successfully!');
                             // Enable the continue button
                             submitButton.prop('disabled', false)
-                                      .text('Continue to Next Step')
-                                      .data('upload-complete', true);
+                                      .text('Continue to Next Step');
                         }).fail(function(xhr, status, error) {
                             console.error('Failed to store headers:', error);
                             showError('Failed to process file headers. Please try again.');

@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/badge/license-GPL--2.0%2B-blue.svg)
 ![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-blue.svg)
 ![PHP](https://img.shields.io/badge/php-7.4%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.0.1-green.svg)
 ![Security Grade](https://img.shields.io/badge/security-A-brightgreen.svg)
 ![Code Quality](https://img.shields.io/badge/code_quality-A-brightgreen.svg)
 ![Performance](https://img.shields.io/badge/performance-A-brightgreen.svg)
@@ -11,7 +11,7 @@
 
 A professional, enterprise-grade WordPress plugin that provides an advanced, secure, and user-friendly interface for importing CSV and Excel data into any WordPress database table with bulletproof workflow validation, comprehensive error handling, and 100% data persistence.
 
-**Version:** 2.0.0  
+**Version:** 2.0.1  
 **Author:** Michael B. William  
 **Author URI:** [michaelbwilliam.com](https://michaelbwilliam.com)  
 **License:** GPL-2.0+  
@@ -244,6 +244,39 @@ For support, documentation, or feature requests:
 - **Email:** contact@michaelbwilliam.com
 
 ## Changelog
+
+### 2.0.1 - 2025-10-19
+**🔧 Critical Navigation Fixes**
+
+This patch release fixes critical bugs preventing users from progressing through the import wizard after file upload.
+
+**Issues Fixed (6 Total):**
+* 🐛 Fixed step progression from upload to select table - users couldn't advance after successful upload
+* 🐛 Form submission prevention - added `onsubmit="return false;"` to prevent default POST behavior
+* 🐛 URL navigation fix - proper WordPress admin URL structure with query parameter handling
+* 🐛 Step validation system unification - now supports both numeric (1,2,3) and text (upload, select-table) identifiers
+* 🐛 File storage key mismatch - validation was checking 'file_path' but uploader stored 'file'
+* 🐛 Missing field validation helpers - added `dbip_validate_field_type()` and `dbip_validate_date()` global functions
+
+**Technical Details:**
+* Root cause: Multiple system conflicts (form submission, URL handling, validation keys)
+* Solution: Unified step system, proper form prevention, corrected storage keys
+* Impact: Users can now complete full import workflow without errors
+* Testing: ✅ All workflow steps validated and working
+
+**Files Modified:** 6 total
+- `database-import-pro.php` - Version bump, added helper functions
+- `admin/partials/step-upload.php` - Form fix, URL navigation
+- `includes/class-dbip-importer-admin.php` - Validation unification, file key fix
+- `admin/partials/step-preview.php` - Function call fix
+- `CHANGELOG.md`, `readme.txt`, `README.md` - Documentation updates
+
+**Upgrade Notes:**
+- 100% backward compatible
+- Immediate upgrade recommended
+- Fixes critical workflow blocking issue
+
+---
 
 ### 2.0.0 - 2025-10-18
 **🎉 Major Stability & Workflow Release**

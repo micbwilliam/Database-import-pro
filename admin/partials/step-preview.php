@@ -103,7 +103,7 @@ $preview_data = dbip_get_import_data('preview_data') ?: array();
                             
                             // Validate data type
                             if (!empty($sample_data)) {
-                                $valid = validate_field_type($sample_data, $column->Type);
+                                $valid = dbip_validate_field_type($sample_data, $column->Type);
                                 $type_class = $valid ? 'valid' : 'invalid';
                                 $status_message = $valid ? __('Valid', 'database-import-pro') : __('Invalid Type', 'database-import-pro');
                             } elseif ($is_required) {

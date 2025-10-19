@@ -4,7 +4,7 @@ Tags: csv, excel, import, database, data, importer, bulk, batch, migration, uplo
 Requires at least: 5.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -201,6 +201,30 @@ You need the "manage_options" capability (typically Administrator role) to use t
 7. Mapping templates - Save and reuse field mappings
 
 == Changelog ==
+
+= 2.0.1 - 2025-10-19 =
+**CRITICAL NAVIGATION FIX**
+* **Bug Fix:** Fixed step progression from upload to select table
+* **Bug Fix:** Form submission prevention - added onsubmit handler
+* **Bug Fix:** URL navigation with proper WordPress admin URL structure
+* **Bug Fix:** Step validation system unification (numeric + text support)
+* **Bug Fix:** File storage key mismatch (file vs file_path)
+* **Bug Fix:** Added missing field validation helper functions
+* **Impact:** Users can now complete full import workflow
+* **Status:** Navigation Issues Resolved ✅
+
+= 2.0.0 - 2025-10-18 =
+**MAJOR STABILITY & WORKFLOW RELEASE**
+* **New:** Complete session to transient migration
+* **New:** Step validation system with access control
+* **New:** Missing AJAX handlers implemented
+* **New:** Enhanced upload validation
+* **Bug Fix:** Data persistence between all steps
+* **Bug Fix:** Removed generic "Next" button bypass
+* **Bug Fix:** Excel support fully functional
+* **Security:** Server-side step validation
+* **Performance:** Transient-based storage (cluster-safe)
+* **Status:** Production Ready ✅
 
 = 1.0.3 - 2025-10-18 =
 **MAJOR CODE QUALITY & PERFORMANCE RELEASE**
