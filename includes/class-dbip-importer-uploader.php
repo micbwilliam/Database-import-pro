@@ -129,13 +129,23 @@ class DBIP_Importer_Uploader {
                 throw new Exception(__('No file uploaded', 'database-import-pro'));
             }
 
-            // Sanitize and unslash file array
-            $file = array();
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below in foreach loop
-            foreach ($_FILES['file'] as $key => $value) {
-                $file[$key] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : $value;
+            // Get file array - DO NOT use wp_unslash() as it strips backslashes from Windows paths
+            // tmp_name is a system path that must be preserved exactly as-is for is_uploaded_file() validation
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized, WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- tmp_name is system path validated by is_uploaded_file(), not user input
+            $file = $_FILES['file'];
+            
+            // Sanitize only the user-provided filename, not system paths
+            if (isset($file['name'])) {
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- will unslash before sanitizing
+                $file['name'] = sanitize_file_name(wp_unslash($file['name']));
             }
-            $this->debug_log('Database Import Pro Importer: Starting file upload processing: ' . wp_json_encode($file));
+            
+            $this->debug_log('Database Import Pro Importer: Starting file upload processing: ' . wp_json_encode(array(
+                'name' => $file['name'],
+                'type' => isset($file['type']) ? $file['type'] : 'unknown',
+                'size' => isset($file['size']) ? $file['size'] : 0,
+                'error' => isset($file['error']) ? $file['error'] : -1
+            )));
             
             // Check for PHP upload errors
             if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -214,6 +224,7 @@ class DBIP_Importer_Uploader {
             $filepath = $this->upload_dir . '/' . $filename;
 
             $this->debug_log('Database Import Pro Importer: Moving file to: ' . $filepath);
+            $this->debug_log('Database Import Pro Importer: Temp file location: ' . $file['tmp_name']);
 
             // Verify source file exists and is readable
             if (!is_uploaded_file($file['tmp_name'])) {
@@ -302,18 +313,63 @@ class DBIP_Importer_Uploader {
 
     /**
      * Move uploaded file with chunking support for large files
+     *
+     * @param string $source Source file path (uploaded temp file)
+     * @param string $dest Destination file path
+     * @param int $chunk_size Chunk size for reading/writing
+     * @return bool True on success, false on failure
      */
     private function move_uploaded_file_chunked($source, $dest, $chunk_size = 1048576) {
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        WP_Filesystem();
-        global $wp_filesystem;
-        $result = $wp_filesystem->copy($source, $dest, true, $chunk_size);
-        if ($result) {
-            $wp_filesystem->delete($source);
-        } else {
-            $wp_filesystem->delete($dest);
+        // For uploaded files, use move_uploaded_file() which is secure and handles permissions
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- direct file operations needed for uploaded files
+        if (@move_uploaded_file($source, $dest)) {
+            // Set proper permissions
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+            @chmod($dest, 0644);
+            return true;
         }
-        return $result;
+        
+        // Fallback: try chunked copy for large files (if move_uploaded_file failed)
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+        $handle_in = @fopen($source, 'rb');
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+        $handle_out = @fopen($dest, 'wb');
+
+        if (!$handle_in || !$handle_out) {
+            if ($handle_in) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose($handle_in);
+            }
+            if ($handle_out) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose($handle_out);
+            }
+            return false;
+        }
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_feof
+        while (!feof($handle_in)) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite, WordPress.WP.AlternativeFunctions.file_system_operations_fread
+            if (fwrite($handle_out, fread($handle_in, $chunk_size)) === false) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose($handle_in);
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose($handle_out);
+                wp_delete_file($dest);
+                return false;
+            }
+        }
+
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+        fclose($handle_in);
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+        fclose($handle_out);
+        
+        // Set proper permissions
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
+        @chmod($dest, 0644);
+
+        return true;
     }
 
     /**
