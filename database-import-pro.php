@@ -3,7 +3,7 @@
  * Plugin Name: Database Import Pro
  * Plugin URI: https://github.com/micbwilliam/Database-import-pro
  * Description: Advanced CSV to database importer with field mapping, data transformations, and batch processing for WordPress databases.
- * Version: 2.1.4
+ * Version: 2.1.5
  * Author: Michael B. William
  * Author URI: https://michaelbwilliam.com
  * License: GPL-2.0+
@@ -21,7 +21,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin constants
-define('DBIP_IMPORTER_VERSION', '2.1.4');
+define('DBIP_IMPORTER_VERSION', '2.1.5');
 define('DBIP_IMPORTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('DBIP_IMPORTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
