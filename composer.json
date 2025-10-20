@@ -4,7 +4,7 @@
     "description": "Enterprise-grade CSV and Excel to database importer for WordPress",
     "type": "wordpress-plugin",
     "keywords": ["wordpress", "plugin", "import", "csv", "excel", "database"],
-    "homepage": "https://michaelbwilliam.com/database-import-pro",
+    "homepage": "https://github.com/micbwilliam/Database-import-pro",
     "license": "GPL-2.0-or-later",
     "authors": [
         {
