@@ -1,5 +1,123 @@
 # Database Import Pro - Changelog
 
+## Version 2.1.0 - October 20, 2025
+
+### 🚀 Enhanced Functionality & Error Handling
+
+This release focuses on improving the plugin's functionality, error handling, and overall user experience with enhanced security measures and better WordPress integration.
+
+---
+
+### Security Enhancements
+
+#### 1. Input Sanitization Improvements
+- **Problem:** Table names and user inputs needed better sanitization
+- **Solution:** Added comprehensive input sanitization and unslashing
+- **Implementation:** Enhanced `DBIP_Importer_Table` class with proper data sanitization
+- **Impact:** Improved security against injection attacks and malformed inputs
+- **Files Changed:** `includes/class-dbip-importer-table.php`
+
+#### 2. WP_Filesystem Integration
+- **Problem:** Direct file operations lacked WordPress security layers
+- **Solution:** Migrated all file operations to use WP_Filesystem API
+- **Implementation:** Updated file reading, writing, and CSV header extraction
+- **Impact:** Better compatibility with different hosting environments and security
+- **Files Changed:** `includes/class-dbip-importer-uploader.php`
+
+---
+
+### Error Handling & Logging Improvements
+
+#### 3. Debug Logging Enhancement
+- **Problem:** Limited debugging capabilities for troubleshooting
+- **Solution:** Added comprehensive debug logging respecting WP_DEBUG settings
+- **Implementation:** Enhanced logging throughout upload and processing classes
+- **Impact:** Better error tracking and troubleshooting for developers
+- **Files Changed:** `includes/class-dbip-importer-uploader.php`
+
+#### 4. Upload Process Improvements
+- **Problem:** File upload errors lacked detailed feedback
+- **Solution:** Enhanced error handling and logging during upload operations
+- **Implementation:** Improved error messages and logging in upload handlers
+- **Impact:** Users get clearer feedback on upload issues
+- **Files Changed:** `includes/class-dbip-importer-uploader.php`
+
+#### 5. System Check Enhancements
+- **Problem:** Excel support messages needed better localization
+- **Solution:** Improved system check messages with proper translation strings
+- **Implementation:** Enhanced system status reporting for Excel requirements
+- **Impact:** Better user experience with localized messages
+- **Files Changed:** `includes/class-dbip-importer-system-check.php`
+
+---
+
+### Code Quality Improvements
+
+#### 6. Test Mock Enhancements
+- **Problem:** Test environment compatibility issues
+- **Solution:** Improved WordPress function mocks for testing
+- **Implementation:** Updated test bootstrap and mock functions
+- **Impact:** More reliable testing environment
+- **Files Changed:** `tests/bootstrap.php`, `tests/mocks/wordpress-functions.php`
+
+#### 7. Documentation Updates
+- **Problem:** PHP requirements and capabilities needed clarification
+- **Solution:** Updated readme.txt with clearer information
+- **Implementation:** Enhanced user-facing documentation
+- **Impact:** Better user understanding of plugin capabilities
+- **Files Changed:** `readme.txt`
+
+---
+
+### Technical Details
+
+**Security Improvements:**
+- Input sanitization for all table operations
+- WP_Filesystem integration for file security
+- Enhanced validation throughout the codebase
+
+**Error Handling:**
+- Debug logging with WP_DEBUG respect
+- Improved error messages for users
+- Better logging for troubleshooting
+
+**Compatibility:**
+- Enhanced WordPress filesystem integration
+- Improved hosting environment compatibility
+- Better test environment support
+
+---
+
+### Files Modified
+
+1. `includes/class-dbip-importer-table.php` - Input sanitization
+2. `includes/class-dbip-importer-uploader.php` - File system integration, logging
+3. `includes/class-dbip-importer-system-check.php` - System messages
+4. `tests/bootstrap.php` - Test improvements
+5. `tests/mocks/wordpress-functions.php` - Mock enhancements
+6. `readme.txt` - Documentation updates
+
+---
+
+### WordPress.org Compatibility
+
+**Security Status:** ✅ Enhanced
+- Input sanitization improvements
+- File system security integration
+- Proper data validation
+
+**Performance Status:** ✅ Maintained
+- No performance regressions
+- Efficient file operations
+- Optimized logging
+
+**Compatibility Status:** ✅ Improved
+- Better hosting environment support
+- Enhanced WordPress integration
+- Improved testing compatibility
+
+---
+
 ## Version 2.0.3 - October 19, 2025
 
 ### 🔧 WordPress.org Automated Scan Compliance

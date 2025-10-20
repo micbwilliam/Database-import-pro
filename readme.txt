@@ -4,7 +4,7 @@ Tags: csv, excel, import, database, bulk
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 2.0.3
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -201,6 +201,19 @@ You need the "manage_options" capability (typically Administrator role) to use t
 7. Mapping templates - Save and reuse field mappings
 
 == Changelog ==
+
+= 2.1.0 - 2025-10-20 =
+**ENHANCED FUNCTIONALITY & ERROR HANDLING**
+* **Enhancement:** Improved system check messages for Excel support with translation strings
+* **Security:** Sanitized and unslashed table names in database operations
+* **Enhancement:** Added debug logging functionality respecting WP_DEBUG settings
+* **Enhancement:** Enhanced file upload process with better error handling and logging
+* **Enhancement:** Updated file handling methods to use WP_Filesystem for improved compatibility
+* **Enhancement:** Refactored CSV header extraction using WP_Filesystem
+* **Enhancement:** Cleaned up debug logging and error messages throughout uploader class
+* **Enhancement:** Improved test mocks for WordPress functions compatibility
+* **Documentation:** Updated readme.txt for clarity on PHP requirements and capabilities
+* **Status:** Enhanced stability and error handling ✅
 
 = 2.0.3 - 2025-10-19 =
 **WORDPRESS.ORG AUTOMATED SCAN COMPLIANCE**
