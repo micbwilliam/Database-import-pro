@@ -321,7 +321,7 @@ class DBIP_Importer_Uploader {
      */
     private function move_uploaded_file_chunked($source, $dest, $chunk_size = 1048576) {
         // For uploaded files, use move_uploaded_file() which is secure and handles permissions
-        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- direct file operations needed for uploaded files
+        // phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- move_uploaded_file() is required for secure handling of PHP uploaded files, WP_Filesystem alternatives don't work with is_uploaded_file() validation
         if (@move_uploaded_file($source, $dest)) {
             // Set proper permissions
             // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
