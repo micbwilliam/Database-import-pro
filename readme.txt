@@ -1,6 +1,6 @@
 === Database Import Pro ===
 Contributors: michaelbwilliam
-Tags: csv, excel, import, database, data, importer, bulk, batch, migration, upload, admin
+Tags: csv, excel, import, database, bulk
 Requires at least: 5.0
 Tested up to: 6.8
 Requires PHP: 7.4
@@ -8,7 +8,7 @@ Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Enterprise-grade CSV and Excel importer with robust workflow validation, transient-based storage, and enhanced error handling for reliable database imports.
+Enterprise-grade CSV and Excel importer with robust workflow validation, transient-based storage, and enhanced error handling.
 
 == Description ==
 
@@ -100,7 +100,7 @@ Enterprise-grade CSV and Excel importer with robust workflow validation, transie
 = Requirements =
 
 * WordPress 5.0 or higher
-* PHP 7.0 or higher (7.4+ recommended)
+* PHP 7.4 or higher
 * MySQL 5.6+ or MariaDB 10.0+
 * 128MB memory minimum (256MB recommended)
 

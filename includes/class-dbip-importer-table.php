@@ -32,7 +32,7 @@ class DBIP_Importer_Table {
         }
 
         global $wpdb;
-        $table = sanitize_text_field($_POST['table']);
+        $table = sanitize_text_field(wp_unslash($_POST['table']));
         $table = esc_sql($table);
         
         // Create cache key for this table
@@ -45,13 +45,16 @@ class DBIP_Importer_Table {
         }
 
         // Get columns
-        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `{$table}`");
+        $table_escaped = esc_sql($table);
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Schema queries need current data, cannot be cached; table names cannot be prepared
+        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `" . $table_escaped . "`");
         if (!$columns) {
             wp_send_json_error(__('Failed to get table structure', 'database-import-pro'));
         }
 
         // Get indexes
-        $indexes = $wpdb->get_results("SHOW INDEX FROM `{$table}`");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Schema queries need current data, cannot be cached; table names cannot be prepared
+        $indexes = $wpdb->get_results("SHOW INDEX FROM `" . $table_escaped . "`");
 
         ob_start();
         ?>
@@ -128,6 +131,7 @@ class DBIP_Importer_Table {
         global $wpdb;
         
         // Get all tables in the database
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema queries need current data, cannot be cached
         $tables = $wpdb->get_results('SHOW TABLES', ARRAY_N);
         
         // Extract table names from result array
@@ -159,13 +163,14 @@ class DBIP_Importer_Table {
             wp_send_json_error(__('No table selected', 'database-import-pro'));
         }
 
-        $table = sanitize_text_field($_POST['table']);
+        $table = sanitize_text_field(wp_unslash($_POST['table']));
         
         // Validate table name against actual database tables (whitelist validation)
         global $wpdb;
         $valid_tables = $this->get_database_tables();
         
         if (!in_array($table, $valid_tables, true)) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate error logging for security validation
             error_log('Database Import Pro: Invalid table selected: ' . $table);
             wp_send_json_error(__('Invalid table selected. Table does not exist in database.', 'database-import-pro'));
         }
@@ -175,7 +180,8 @@ class DBIP_Importer_Table {
 
         // Get table structure for next step
         $table_escaped = esc_sql($table);
-        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `{$table_escaped}`");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Schema queries need current data, cannot be cached; table names cannot be prepared
+        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `" . $table_escaped . "`");
         dbip_set_import_data('table_columns', $columns);
 
         wp_send_json_success();

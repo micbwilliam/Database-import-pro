@@ -45,7 +45,7 @@ jQuery(document).ready(function($) {
     function loadImportLogs() {
         $.post(dbipImporter.ajax_url, {
             action: 'dbip_get_import_logs',
-            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
+            nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>'
         }, function(response) {
             if (response.success && response.data) {
                 const tbody = $('#import-logs-list');
@@ -131,7 +131,7 @@ jQuery(document).ready(function($) {
         
         $.post(dbipImporter.ajax_url, {
             action: 'dbip_export_error_log',
-            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>',
+            nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>',
             log_id: logId
         }, function(response) {
             if (response.success && response.data) {

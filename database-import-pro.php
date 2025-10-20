@@ -13,7 +13,6 @@
  * Requires at least: 5.0
  * Requires PHP: 7.4
  * Tested up to: 6.8
- * Requires Plugins:
  */
 
 // If this file is called directly, abort.
@@ -212,9 +211,14 @@ if (function_exists('ini_set')) {
     );
     
     foreach ($settings as $key => $value) {
+        // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- ini_set used to set runtime limits when available
         $result = @ini_set($key, $value);
         if ($result === false) {
-            error_log('Database Import Pro: Failed to set ' . $key . ' to ' . $value);
+            // Only log in debug mode to avoid noisy production logs
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug-only logging
+                error_log('Database Import Pro: Failed to set ' . $key . ' to ' . $value);
+            }
         }
     }
 }
@@ -308,8 +312,51 @@ function dbip_importer_cleanup() {
     $upload_dir = wp_upload_dir();
     $temp_dir = trailingslashit($upload_dir['basedir']) . 'dbip-importer';
     if (is_dir($temp_dir)) {
-        array_map('unlink', glob("$temp_dir/*.*"));
-        rmdir($temp_dir);
+        // Use WP Filesystem API for file operations
+        if ( ! function_exists('WP_Filesystem') ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        // Try to initialize WP_Filesystem in non-interactive mode. On deactivation there is no UI
+        // to request credentials, so avoid request_filesystem_credentials which may attempt to prompt.
+        if ( ! WP_Filesystem() ) {
+            // Fallback to WordPress helper where possible
+            foreach (glob($temp_dir . "/*") as $file) {
+                if (is_file($file)) {
+                    // prefer wp_delete_file for consistency
+                    if (function_exists('wp_delete_file')) {
+                        wp_delete_file($file);
+                    } else {
+                        // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- fallback when WP helper is not available
+                        unlink($file);
+                    }
+                }
+            }
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- fallback removal when Filesystem API not available
+            rmdir($temp_dir);
+        } else {
+            global $wp_filesystem;
+            // Use recursive delete
+            if ( method_exists( $wp_filesystem, 'delete' ) ) {
+                $wp_filesystem->delete( untrailingslashit( $temp_dir ), true );
+            } elseif ( method_exists( $wp_filesystem, 'rmdir' ) ) {
+                $wp_filesystem->rmdir( untrailingslashit( $temp_dir ), true );
+            } else {
+                // Fallback: try to remove files then directory using wp_delete_file where available
+                foreach (glob($temp_dir . "/*") as $file) {
+                    if (is_file($file)) {
+                        if (function_exists('wp_delete_file')) {
+                            wp_delete_file($file);
+                        } else {
+                            // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink -- fallback when WP helper is not available
+                            unlink($file);
+                        }
+                    }
+                }
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir -- fallback removal when Filesystem API not available
+                rmdir($temp_dir);
+            }
+        }
     }
     
     // Clear session
@@ -351,11 +398,26 @@ function dbip_importer_activate() {
     dbDelta($sql);
     
     // Add indexes if they don't exist (for existing installations)
-    $indexes_exist = $wpdb->get_results("SHOW INDEX FROM {$table_name} WHERE Key_name = 'idx_user_date'");
+    // Sanitize table name for use in SQL. Table name is derived from $wpdb->prefix so this is safe,
+    // but escape it to satisfy static analysis.
+    $safe_table = esc_sql( $table_name );
+
+    // Table identifiers cannot be used with $wpdb->prepare() placeholders. The table name
+    // is derived from $wpdb->prefix and escaped above with esc_sql(). Build the SQL via
+    // concatenation and explicitly ignore the prepared-SQL rule for these lines.
+    // Table identifiers cannot be used with $wpdb->prepare() placeholders. The table name
+    // is derived from $wpdb->prefix and escaped above with esc_sql(). Build the SQL via
+    // concatenation and explicitly ignore the prepared-SQL rule for these lines.
+    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Schema/index changes must use direct queries, table name is sanitized with esc_sql()
+    $indexes_exist = $wpdb->get_results("SHOW INDEX FROM `" . $safe_table . "` WHERE Key_name = 'idx_user_date'");
     if (empty($indexes_exist)) {
-        $wpdb->query("ALTER TABLE {$table_name} ADD INDEX idx_user_date (user_id, import_date)");
-        $wpdb->query("ALTER TABLE {$table_name} ADD INDEX idx_status (status)");
-        $wpdb->query("ALTER TABLE {$table_name} ADD INDEX idx_import_date (import_date)");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Schema/index changes must use direct queries, table name is sanitized with esc_sql()
+        $wpdb->query("ALTER TABLE `" . $safe_table . "` ADD INDEX idx_user_date (user_id, import_date)");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Schema/index changes must use direct queries, table name is sanitized with esc_sql()
+        $wpdb->query("ALTER TABLE `" . $safe_table . "` ADD INDEX idx_status (status)");
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Schema/index changes must use direct queries, table name is sanitized with esc_sql()
+        $wpdb->query("ALTER TABLE `" . $safe_table . "` ADD INDEX idx_import_date (import_date)");
     }
+    // Note: Caching is not used for schema/index changes in activation hooks, as these are one-time operations and must reflect the current DB state.
 }
 register_activation_hook(__FILE__, 'dbip_importer_activate');

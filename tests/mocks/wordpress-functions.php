@@ -41,7 +41,7 @@ if (!function_exists('esc_sql')) {
 
 if (!function_exists('sanitize_text_field')) {
     function sanitize_text_field(string $str): string {
-        return strip_tags($str);
+        return strip_tags($str); // phpcs:ignore WordPressVIPMinimum.Functions.StripTags.StripTags,WordPress.WP.AlternativeFunctions.strip_tags_strip_tags -- Test mock, strip_tags is appropriate for sanitization
     }
 }
 
@@ -61,7 +61,7 @@ if (!function_exists('wp_send_json_error')) {
 
 if (!function_exists('wp_date')) {
     function wp_date(string $format, ?int $timestamp = null, $timezone = null): string {
-        return date($format, $timestamp ?? time());
+        return gmdate($format, $timestamp ?? time());
     }
 }
 

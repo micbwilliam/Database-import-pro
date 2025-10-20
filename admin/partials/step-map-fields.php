@@ -14,7 +14,7 @@ if (!defined('WPINC')) {
 // Get the selected table structure
 global $wpdb;
 $table = dbip_get_import_data('target_table') ?: '';
-$columns = $wpdb->get_results("SHOW COLUMNS FROM {$table}");
+$columns = $wpdb->get_results('SHOW COLUMNS FROM ' . esc_sql($table)); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Schema queries need current data, cannot be cached; table identifier used directly after esc_sql; identifiers cannot be parameterized
 
 // Get CSV headers from the uploaded file
 $csv_headers = dbip_get_import_data('headers') ?: array();
@@ -22,7 +22,7 @@ $csv_headers = dbip_get_import_data('headers') ?: array();
 // Add debug output
 if (empty($csv_headers)) {
     $import_data = dbip_get_import_data();
-    error_log('Database Import Pro Debug: CSV headers are empty. Import data: ' . print_r($import_data, true));
+    // Debug removed for production
 }
 ?>
 

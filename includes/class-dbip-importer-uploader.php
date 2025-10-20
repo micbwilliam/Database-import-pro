@@ -8,6 +8,18 @@
 
 class DBIP_Importer_Uploader {
     /**
+     * Debug logging wrapper that respects WP_DEBUG.
+     *
+     * @param string $message Message to log
+     * @return void
+     */
+    private function debug_log($message) {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate debug wrapper using error_log when WP_DEBUG is on
+            error_log($message);
+        }
+    }
+    /**
      * Allowed file types and their MIME types
      * Dynamically populated based on server capabilities
      *
@@ -117,8 +129,13 @@ class DBIP_Importer_Uploader {
                 throw new Exception(__('No file uploaded', 'database-import-pro'));
             }
 
-            $file = $_FILES['file'];
-            error_log('Database Import Pro Importer: Starting file upload processing: ' . print_r($file, true));
+            // Sanitize and unslash file array
+            $file = array();
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below in foreach loop
+            foreach ($_FILES['file'] as $key => $value) {
+                $file[$key] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : $value;
+            }
+            $this->debug_log('Database Import Pro Importer: Starting file upload processing: ' . wp_json_encode($file));
             
             // Check for PHP upload errors
             if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -127,12 +144,13 @@ class DBIP_Importer_Uploader {
             }
 
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            error_log('Database Import Pro Importer: File extension: ' . $ext);
+            $this->debug_log('Database Import Pro Importer: File extension: ' . $ext);
 
             // Validate file extension
             if (!array_key_exists($ext, $this->allowed_types)) {
                 $supported = DBIP_Importer_System_Check::get_supported_extensions_string();
                 throw new Exception(sprintf(
+                    /* translators: %s: supported file formats */
                     __('Invalid file type. Supported formats: %s', 'database-import-pro'),
                     $supported
                 ));
@@ -141,7 +159,8 @@ class DBIP_Importer_Uploader {
             // Validate file size
             if ($file['size'] > $this->max_file_size) {
                 throw new Exception(sprintf(
-                    __('File size (%s) exceeds limit of %s.', 'database-import-pro'),
+                    /* translators: 1: actual file size, 2: maximum allowed size */
+                    __('File size (%1$s) exceeds limit of %2$s.', 'database-import-pro'),
                     size_format($file['size']),
                     size_format($this->max_file_size)
                 ));
@@ -152,20 +171,26 @@ class DBIP_Importer_Uploader {
 
             // Ensure upload directory exists and is writable
             if (!wp_mkdir_p($this->upload_dir)) {
-                error_log('Database Import Pro Error: Failed to create upload directory: ' . $this->upload_dir);
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Failed to create upload directory: ' . $this->upload_dir); }
                 throw new Exception(__('Failed to create upload directory. Please check server permissions.', 'database-import-pro'));
             }
 
             // Verify directory was created successfully
             if (!is_dir($this->upload_dir)) {
-                error_log('Database Import Pro Error: Upload directory does not exist after creation: ' . $this->upload_dir);
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Upload directory does not exist after creation: ' . $this->upload_dir); }
                 throw new Exception(__('Upload directory creation succeeded but directory is not accessible.', 'database-import-pro'));
             }
 
             // Check if directory is writable
-            if (!is_writable($this->upload_dir)) {
-                error_log('Database Import Pro Error: Upload directory is not writable: ' . $this->upload_dir);
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+            global $wp_filesystem;
+            if (!$wp_filesystem->is_writable($this->upload_dir)) {
+                $this->debug_log('Database Import Pro Error: Upload directory is not writable: ' . $this->upload_dir);
                 throw new Exception(sprintf(
+                    /* translators: %s: upload directory path */
                     __('Upload directory is not writable: %s. Please check directory permissions (should be 755 or 775).', 'database-import-pro'),
                     $this->upload_dir
                 ));
@@ -174,9 +199,11 @@ class DBIP_Importer_Uploader {
             // Check available disk space
             $free_space = @disk_free_space($this->upload_dir);
             if ($free_space !== false && $free_space < $file['size']) {
-                error_log('Database Import Pro Error: Insufficient disk space. Required: ' . size_format($file['size']) . ', Available: ' . size_format($free_space));
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Insufficient disk space. Required: ' . size_format($file['size']) . ', Available: ' . size_format($free_space)); }
                 throw new Exception(sprintf(
-                    __('Insufficient disk space. Required: %s, Available: %s', 'database-import-pro'),
+                    /* translators: 1: required disk space, 2: available disk space */
+                    __('Insufficient disk space. Required: %1$s, Available: %2$s', 'database-import-pro'),
                     size_format($file['size']),
                     size_format($free_space)
                 ));
@@ -186,43 +213,49 @@ class DBIP_Importer_Uploader {
             $filename = uniqid('import_') . '.' . $ext;
             $filepath = $this->upload_dir . '/' . $filename;
 
-            error_log('Database Import Pro Importer: Moving file to: ' . $filepath);
+            $this->debug_log('Database Import Pro Importer: Moving file to: ' . $filepath);
 
             // Verify source file exists and is readable
             if (!is_uploaded_file($file['tmp_name'])) {
-                error_log('Database Import Pro Error: Source file is not a valid uploaded file: ' . $file['tmp_name']);
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Source file is not a valid uploaded file: ' . $file['tmp_name']); }
                 throw new Exception(__('Invalid upload: file failed security check.', 'database-import-pro'));
             }
 
             if (!is_readable($file['tmp_name'])) {
-                error_log('Database Import Pro Error: Source file is not readable: ' . $file['tmp_name']);
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Source file is not readable: ' . $file['tmp_name']); }
                 throw new Exception(__('Cannot read uploaded file. File may be corrupted.', 'database-import-pro'));
             }
 
             // Move uploaded file with chunking support
             if ($this->move_uploaded_file_chunked($file['tmp_name'], $filepath)) {
-                error_log('Database Import Pro Importer: File moved successfully');
+                // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Importer: File moved successfully'); }
                 
                 // Verify destination file was created and is readable
                 if (!file_exists($filepath)) {
-                    error_log('Database Import Pro Error: File was not created at destination: ' . $filepath);
+                    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                    if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: File was not created at destination: ' . $filepath); }
                     throw new Exception(__('File upload succeeded but file cannot be found at destination.', 'database-import-pro'));
                 }
 
                 if (!is_readable($filepath)) {
-                    error_log('Database Import Pro Error: Destination file is not readable: ' . $filepath);
+                    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                    if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Destination file is not readable: ' . $filepath); }
                     throw new Exception(__('File uploaded but cannot be read. Please check file permissions.', 'database-import-pro'));
                 }
 
                 $actual_size = filesize($filepath);
                 if ($actual_size === false) {
-                    error_log('Database Import Pro Error: Cannot determine file size: ' . $filepath);
+                    // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only, remove for production
+                    if (defined('WP_DEBUG') && WP_DEBUG) { error_log('Database Import Pro Error: Cannot determine file size: ' . $filepath); }
                     throw new Exception(__('File uploaded but size cannot be determined.', 'database-import-pro'));
                 }
 
                 if ($actual_size !== $file['size']) {
-                    error_log('Database Import Pro Error: File size mismatch. Expected: ' . $file['size'] . ', Got: ' . $actual_size);
-                    @unlink($filepath); // Clean up incomplete file
+                    $this->debug_log('Database Import Pro Error: File size mismatch. Expected: ' . $file['size'] . ', Got: ' . $actual_size);
+                    wp_delete_file($filepath); // Clean up incomplete file
                     throw new Exception(__('File upload incomplete. File size mismatch detected.', 'database-import-pro'));
                 }
                 
@@ -235,21 +268,21 @@ class DBIP_Importer_Uploader {
                 ));
 
                 // Get file headers based on type
-                error_log('Database Import Pro Importer: Getting headers for file type: ' . $ext);
+                $this->debug_log('Database Import Pro Importer: Getting headers for file type: ' . $ext);
                 $headers = $this->get_file_headers($filepath, $ext);
                 
                 if (is_wp_error($headers)) {
-                    error_log('Database Import Pro Importer Error: ' . $headers->get_error_message());
+                    $this->debug_log('Database Import Pro Importer Error: ' . $headers->get_error_message());
                     throw new Exception($headers->get_error_message());
                 }
 
                 if (empty($headers)) {
-                    error_log('Database Import Pro Importer Error: No headers found in file');
+                    $this->debug_log('Database Import Pro Importer Error: No headers found in file');
                     throw new Exception(__('No headers found in the uploaded file', 'database-import-pro'));
                 }
 
                 dbip_set_import_data('headers', $headers);
-                error_log('Database Import Pro Importer: Headers extracted successfully: ' . print_r($headers, true));
+                $this->debug_log('Database Import Pro Importer: Headers extracted successfully: ' . wp_json_encode($headers));
 
                 wp_send_json_success(array(
                     'filename' => $file['name'],
@@ -262,7 +295,7 @@ class DBIP_Importer_Uploader {
             }
 
         } catch (Exception $e) {
-            error_log("Database Import Pro Error: " . $e->getMessage());
+            $this->debug_log("Database Import Pro Error: " . $e->getMessage());
             wp_send_json_error($e->getMessage());
         }
     }
@@ -271,26 +304,16 @@ class DBIP_Importer_Uploader {
      * Move uploaded file with chunking support for large files
      */
     private function move_uploaded_file_chunked($source, $dest, $chunk_size = 1048576) {
-        $handle_in = @fopen($source, 'rb');
-        $handle_out = @fopen($dest, 'wb');
-
-        if (!$handle_in || !$handle_out) {
-            return false;
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+        global $wp_filesystem;
+        $result = $wp_filesystem->copy($source, $dest, true, $chunk_size);
+        if ($result) {
+            $wp_filesystem->delete($source);
+        } else {
+            $wp_filesystem->delete($dest);
         }
-
-        while (!feof($handle_in)) {
-            if (fwrite($handle_out, fread($handle_in, $chunk_size)) === false) {
-                fclose($handle_in);
-                fclose($handle_out);
-                @unlink($dest);
-                return false;
-            }
-        }
-
-        fclose($handle_in);
-        fclose($handle_out);
-
-        return true;
+        return $result;
     }
 
     /**
@@ -353,12 +376,12 @@ class DBIP_Importer_Uploader {
      * @return boolean True if valid CSV
      */
     private function is_valid_csv($file) {
-        if (($handle = fopen($file, 'r')) !== false) {
-            // Try to read the first line
-            $first_line = fgets($handle);
-            fclose($handle);
-
-            // Check if the line contains a comma or semicolon (common CSV delimiters)
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+        global $wp_filesystem;
+        $contents = $wp_filesystem->get_contents($file);
+        if ($contents !== false) {
+            $first_line = strtok($contents, "\n");
             if (strpos($first_line, ',') !== false || strpos($first_line, ';') !== false) {
                 return true;
             }
@@ -373,68 +396,36 @@ class DBIP_Importer_Uploader {
      * @param string $type File type
      * @return array|WP_Error Headers array or error
      */
-    private function get_file_headers($filepath, $type) {
-        return $this->get_csv_headers($filepath);
-    }
-
-    /**
-     * Get headers from CSV file
-     *
-     * @param string $filepath File path
-     * @return array|WP_Error Headers array or error
-     */
-    private function get_csv_headers($filepath) {
-        // Verify file exists
-        if (!file_exists($filepath)) {
-            error_log('Database Import Pro Error: File does not exist: ' . $filepath);
+    public function get_file_headers($filepath, $type = '') {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+        global $wp_filesystem;
+        if (!$wp_filesystem->exists($filepath)) {
+            $this->debug_log('Database Import Pro Error: File does not exist: ' . $filepath);
             return new WP_Error('file_not_found', __('File does not exist', 'database-import-pro'));
         }
-
-        // Verify file is readable
-        if (!is_readable($filepath)) {
-            error_log('Database Import Pro Error: File is not readable: ' . $filepath);
+        if (!$wp_filesystem->is_readable($filepath)) {
+            $this->debug_log('Database Import Pro Error: File is not readable: ' . $filepath);
             return new WP_Error('file_not_readable', __('File is not readable. Check file permissions.', 'database-import-pro'));
         }
-
-        // Check if file is empty
-        $filesize = filesize($filepath);
-        if ($filesize === false) {
-            error_log('Database Import Pro Error: Cannot determine file size: ' . $filepath);
-            return new WP_Error('file_error', __('Cannot determine file size', 'database-import-pro'));
+        $contents = $wp_filesystem->get_contents($filepath);
+        if ($contents === false) {
+            $this->debug_log('Database Import Pro Error: Cannot read file contents: ' . $filepath);
+            return new WP_Error('file_error', __('Cannot read file contents', 'database-import-pro'));
         }
-
-        if ($filesize === 0) {
-            error_log('Database Import Pro Error: File is empty: ' . $filepath);
+        if (strlen($contents) === 0) {
+            $this->debug_log('Database Import Pro Error: File is empty: ' . $filepath);
             return new WP_Error('file_empty', __('File is empty', 'database-import-pro'));
         }
-
-        $handle = @fopen($filepath, 'r');
-        if (!$handle) {
-            $error = error_get_last();
-            $error_message = isset($error['message']) ? $error['message'] : 'Unknown error';
-            error_log('Database Import Pro Error: Could not open file: ' . $filepath . ' - ' . $error_message);
-            return new WP_Error('file_error', sprintf(
-                /* translators: %s: error message from PHP */
-                __('Could not open file. %s', 'database-import-pro'),
-                $error_message
-            ));
-        }
-
-        // Try to detect the delimiter
-        $first_line = fgets($handle);
+        $first_line = strtok($contents, "\n");
         if ($first_line === false) {
-            fclose($handle);
-            error_log('Database Import Pro Error: Could not read first line from file: ' . $filepath);
+            $this->debug_log('Database Import Pro Error: Could not read first line from file: ' . $filepath);
             return new WP_Error('file_error', __('Could not read first line from file', 'database-import-pro'));
         }
-
-        rewind($handle);
-        
-        // Detect common delimiters - FIXED: Use actual tab character, not string '\t'
+        // Detect common delimiters
         $delimiters = array(',', ';', "\t", '|');
-        $delimiter = ','; // default
+        $delimiter = ',';
         $max_count = 0;
-        
         foreach ($delimiters as $d) {
             $count = count(str_getcsv($first_line, $d));
             if ($count > $max_count) {
@@ -442,33 +433,19 @@ class DBIP_Importer_Uploader {
                 $delimiter = $d;
             }
         }
-
-        // Detect encoding and convert to UTF-8 if necessary
         $encoding = mb_detect_encoding($first_line, array('UTF-8', 'ISO-8859-1', 'ASCII', 'Windows-1252'));
         if ($encoding && $encoding !== 'UTF-8') {
             $first_line = mb_convert_encoding($first_line, 'UTF-8', $encoding);
         }
-
-        // Parse headers with detected delimiter
         $headers = str_getcsv($first_line, $delimiter);
-        
-        // Clean up headers
         $headers = array_map(function($header) {
-            // Remove BOM if present
             $header = str_replace("\xEF\xBB\xBF", '', $header);
-            // Trim whitespace and quotes
             $header = trim($header, " \t\n\r\0\x0B\"'");
-            // Sanitize
             return sanitize_text_field($header);
         }, $headers);
-
-        // Store total number of columns for validation
         dbip_set_import_data('total_columns', count($headers));
-        
-        error_log('Database Import Pro Importer: Detected ' . count($headers) . ' columns with delimiter "' . $delimiter . '"');
-        error_log('Database Import Pro Importer: Headers: ' . print_r($headers, true));
-
-        fclose($handle);
+        $this->debug_log('Database Import Pro Importer: Detected ' . count($headers) . ' columns with delimiter "' . $delimiter . '"');
+        $this->debug_log('Database Import Pro Importer: Headers: ' . wp_json_encode($headers));
         return $headers;
     }
 
@@ -484,17 +461,21 @@ class DBIP_Importer_Uploader {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $headers = isset($_POST['headers']) ? json_decode(stripslashes($_POST['headers']), true) : array();
-        
+        $headers = array();
+        if (isset($_POST['headers'])) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+            $raw = wp_unslash($_POST['headers']);
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $headers = array_map('sanitize_text_field', $decoded);
+            }
+        }
         if (empty($headers)) {
             wp_send_json_error(__('No headers provided', 'database-import-pro'));
         }
-
         // Store headers in transient
         dbip_set_import_data('headers', $headers);
-        
-        error_log('Database Import Pro Importer Debug: Stored headers in transient: ' . print_r($headers, true));
-        
+        $this->debug_log('Database Import Pro Importer Debug: Stored headers in transient: ' . wp_json_encode($headers));
         wp_send_json_success();
     }
 
@@ -506,7 +487,7 @@ class DBIP_Importer_Uploader {
     public function cleanup(): void {
         $file_info = dbip_get_import_data('file');
         if ($file_info && isset($file_info['path'])) {
-            @unlink($file_info['path']);
+            wp_delete_file($file_info['path']);
         }
     }
 }

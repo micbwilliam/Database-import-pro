@@ -90,7 +90,7 @@ $preview_data = dbip_get_import_data('preview_data') ?: array();
                         <?php
                         global $wpdb;
                         $table = dbip_get_import_data('target_table');
-                        $columns = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`");
+                        $columns = $wpdb->get_results('SHOW COLUMNS FROM `' . esc_sql($table) . '`'); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Schema queries need current data, cannot be cached; table identifier used directly after esc_sql; identifiers cannot be parameterized
                         foreach ($columns as $column) :
                             $mapped_field = $mapping[$column->Field]['csv_field'] ?? '';
                             $sample_data = '';
@@ -105,10 +105,10 @@ $preview_data = dbip_get_import_data('preview_data') ?: array();
                             if (!empty($sample_data)) {
                                 $valid = dbip_validate_field_type($sample_data, $column->Type);
                                 $type_class = $valid ? 'valid' : 'invalid';
-                                $status_message = $valid ? __('Valid', 'database-import-pro') : __('Invalid Type', 'database-import-pro');
+                                $status_message = $valid ? esc_html__('Valid', 'database-import-pro') : esc_html__('Invalid Type', 'database-import-pro');
                             } elseif ($is_required) {
                                 $type_class = 'required';
-                                $status_message = __('Required Field', 'database-import-pro');
+                                $status_message = esc_html__('Required Field', 'database-import-pro');
                             }
                         ?>
                             <tr class="<?php echo esc_attr($type_class); ?>">

@@ -13,7 +13,7 @@ if (!defined('WPINC')) {
 
 // Debug import data
 $import_data = dbip_get_import_data();
-error_log('Database Import Pro Debug - Import data at start: ' . print_r($import_data, true));
+// Debug removed for production
 
 $total_records = dbip_get_import_data('total_records') ?: 0;
 $import_mode = dbip_get_import_data('import_mode') ?: 'insert';
@@ -22,13 +22,13 @@ $import_mode = dbip_get_import_data('import_mode') ?: 'insert';
 if (!dbip_get_import_data('file') || 
     !dbip_get_import_data('mapping') || 
     !dbip_get_import_data('target_table')) {
-    wp_die(__('Missing required import data. Please go back and complete all previous steps.', 'database-import-pro'));
+    wp_die(esc_html__('Missing required import data. Please go back and complete all previous steps.', 'database-import-pro'));
 }
 
 // Verify file exists
 $file_info = dbip_get_import_data('file');
 if (!$file_info || !file_exists($file_info['path'])) {
-    wp_die(__('Import file not found. Please restart the import process.', 'database-import-pro'));
+    wp_die(esc_html__('Import file not found. Please restart the import process.', 'database-import-pro'));
 }
 ?>
 
@@ -139,7 +139,7 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'dbip_process_import_batch',
                 batch: currentBatch,
-                nonce: '<?php echo $nonce; ?>'
+                nonce: '<?php echo esc_attr($nonce); ?>'
             },
             success: function(response) {
                 console.log('Database Import Pro: Batch response', response);
@@ -199,7 +199,7 @@ jQuery(document).ready(function($) {
         // Store progress in session via AJAX
         $.post(dbipImporter.ajax_url, {
             action: 'dbip_save_import_progress',
-            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>',
+            nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>',
             stats: totalStats,
             percentage: percentage
         });
@@ -229,7 +229,7 @@ jQuery(document).ready(function($) {
         // Store start time for duration tracking
         $.post(dbipImporter.ajax_url, {
             action: 'dbip_save_import_start',
-            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
+            nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>'
         }, function() {
             processBatch();
         });
@@ -275,7 +275,7 @@ jQuery(document).ready(function($) {
             
             $.post(dbipImporter.ajax_url, {
                 action: 'dbip_cancel_import',
-                nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
+                nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>'
             })
             .done(function(response) {
                 if (response.success) {

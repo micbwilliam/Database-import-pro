@@ -12,6 +12,7 @@ if (!defined('WPINC')) {
 }
 
 global $wpdb;
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema queries need current data, cannot be cached
 $tables = $wpdb->get_results('SHOW TABLES', ARRAY_N);
 ?>
 

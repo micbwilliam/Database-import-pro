@@ -132,7 +132,7 @@ jQuery(document).ready(function($) {
     $('#download-error-log').on('click', function() {
         $.post(dbipImporter.ajax_url, {
             action: 'dbip_download_error_log',
-            nonce: '<?php echo wp_create_nonce('dbip_importer_nonce'); ?>'
+            nonce: '<?php echo esc_attr(wp_create_nonce('dbip_importer_nonce')); ?>'
         }, function(response) {
             if (response.success) {
                 // Create and download the file

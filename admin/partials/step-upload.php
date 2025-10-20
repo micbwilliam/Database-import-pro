@@ -83,8 +83,9 @@ if (!defined('WPINC')) {
                     }
                 }
                 printf(
-                    __('Accepted formats: %s', 'database-import-pro'),
-                    implode(', ', $format_labels)
+                    /* translators: %s: comma-separated list of accepted file formats */
+                    esc_html__('Accepted formats: %s', 'database-import-pro'),
+                    wp_kses(implode(', ', $format_labels), array('strong' => array()))
                 );
                 ?>
             </li>

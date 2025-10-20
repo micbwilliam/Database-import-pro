@@ -186,9 +186,21 @@ $has_excel = DBIP_Importer_System_Check::has_excel_support();
             <h3><?php esc_html_e('Need Help?', 'database-import-pro'); ?></h3>
             <p>
                 <?php
-                printf(
+                // Format the documentation link safely. Allow only <a> with href and target attributes.
+                $doc_html = sprintf(
+                    /* translators: %s: URL to documentation */
                     __('See the <a href="%s" target="_blank">Developer Documentation</a> for detailed instructions.', 'database-import-pro'),
-                    'https://github.com/michaelbwilliam/database-import-pro#excel-support'
+                    esc_url('https://github.com/michaelbwilliam/database-import-pro#excel-support')
+                );
+
+                echo wp_kses(
+                    $doc_html,
+                    array(
+                        'a' => array(
+                            'href' => array(),
+                            'target' => array()
+                        ),
+                    )
                 );
                 ?>
             </p>
@@ -201,7 +213,7 @@ $has_excel = DBIP_Importer_System_Check::has_excel_support();
         <h2><?php esc_html_e('Debug Information', 'database-import-pro'); ?></h2>
         <p><?php esc_html_e('Copy and paste this information when reporting issues:', 'database-import-pro'); ?></p>
         <textarea readonly style="width: 100%; height: 200px; font-family: monospace; font-size: 12px;"><?php
-            echo esc_textarea(print_r($system_info, true));
+            echo esc_textarea(json_encode($system_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         ?></textarea>
     </div>
 </div>

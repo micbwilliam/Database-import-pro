@@ -32,6 +32,47 @@ class DBIP_Importer_Mapping {
     }
 
     /**
+     * Helper: log debug messages only when WP_DEBUG is enabled
+     *
+     * @param string $message Debug message
+     * @return void
+     */
+    private function log_debug(string $message): void {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- gated by WP_DEBUG
+            error_log($message);
+        }
+    }
+
+    /**
+     * Recursively sanitize input data (arrays and strings).
+     * Strips tags and sanitizes scalar strings; preserves non-string scalars.
+     *
+     * @param mixed $data Input to sanitize
+     * @return mixed Sanitized data
+     */
+    private function sanitize_recursive($data) {
+        if (is_array($data)) {
+            $clean = array();
+            foreach ($data as $key => $value) {
+                $clean_key = is_string($key) ? sanitize_text_field($key) : $key;
+                if (is_array($value)) {
+                    $clean[$clean_key] = $this->sanitize_recursive($value);
+                } else {
+                    $clean[$clean_key] = is_string($value) ? sanitize_text_field($value) : $value;
+                }
+            }
+            return $clean;
+        }
+
+        if (is_string($data)) {
+            return sanitize_text_field($data);
+        }
+
+        return $data;
+    }
+
+    /**
      * Save mapping template
      * 
      * @return void
@@ -43,8 +84,15 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $template_name = sanitize_text_field($_POST['template_name']);
-        $mapping_data = json_decode(stripslashes($_POST['mapping_data']), true);
+    $template_name = isset($_POST['template_name']) ? sanitize_text_field(wp_unslash($_POST['template_name'])) : '';
+    $mapping_data = array();
+    if (isset($_POST['mapping_data'])) {
+        $raw = wp_unslash($_POST['mapping_data']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $mapping_data = $this->sanitize_recursive($decoded);
+        }
+    }
 
         if (empty($template_name) || empty($mapping_data)) {
             wp_send_json_error(__('Invalid template data', 'database-import-pro'));
@@ -55,7 +103,7 @@ class DBIP_Importer_Mapping {
             'name' => $template_name,
             'mapping' => $mapping_data,
             'created' => wp_date('Y-m-d H:i:s', null, wp_timezone()),
-            'table' => sanitize_text_field($_POST['table_name'])
+            'table' => isset($_POST['table_name']) ? sanitize_text_field(wp_unslash($_POST['table_name'])) : ''
         );
 
         update_option(self::TEMPLATE_OPTION, $templates);
@@ -74,7 +122,7 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $template_name = sanitize_text_field($_POST['template_name']);
+    $template_name = isset($_POST['template_name']) ? sanitize_text_field(wp_unslash($_POST['template_name'])) : '';
         $templates = get_option(self::TEMPLATE_OPTION, array());
 
         if (!isset($templates[$template_name])) {
@@ -112,7 +160,7 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $template_name = sanitize_text_field($_POST['template_name']);
+    $template_name = isset($_POST['template_name']) ? sanitize_text_field(wp_unslash($_POST['template_name'])) : '';
         $templates = get_option(self::TEMPLATE_OPTION, array());
 
         if (isset($templates[$template_name])) {
@@ -135,8 +183,23 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $csv_headers = isset($_POST['csv_headers']) ? json_decode(stripslashes($_POST['csv_headers']), true) : array();
-        $db_columns = isset($_POST['db_columns']) ? json_decode(stripslashes($_POST['db_columns']), true) : array();
+    $csv_headers = array();
+    if (isset($_POST['csv_headers'])) {
+        $raw = wp_unslash($_POST['csv_headers']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $csv_headers = $this->sanitize_recursive($decoded);
+        }
+    }
+
+    $db_columns = array();
+    if (isset($_POST['db_columns'])) {
+        $raw = wp_unslash($_POST['db_columns']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            $db_columns = $this->sanitize_recursive($decoded);
+        }
+    }
 
         if (empty($csv_headers) || empty($db_columns)) {
             wp_send_json_error(__('Missing headers or columns', 'database-import-pro'));
@@ -194,7 +257,14 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        $mapping = json_decode(stripslashes($_POST['mapping']), true);
+        $mapping = null;
+        if (isset($_POST['mapping'])) {
+            $raw = wp_unslash($_POST['mapping']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $mapping = $this->sanitize_recursive($decoded);
+            }
+        }
         if (!is_array($mapping)) {
             wp_send_json_error(__('Invalid mapping data', 'database-import-pro'));
         }
@@ -221,11 +291,11 @@ class DBIP_Importer_Mapping {
             )
         );
 
-        error_log('Database Import Pro Importer Debug: Validating mapping data: ' . print_r($mapping, true));
+    $this->log_debug('Database Import Pro Importer Debug: Validating mapping data: ' . wp_json_encode($mapping));
 
         $validation = $this->validate_schema($mapping, $schema);
         if (!$validation['valid']) {
-            error_log('Database Import Pro Importer Debug: Validation failed: ' . print_r($validation, true));
+            $this->log_debug('Database Import Pro Importer Debug: Validation failed: ' . wp_json_encode($validation));
             wp_send_json_error($validation['error']);
         }
 
@@ -242,7 +312,7 @@ class DBIP_Importer_Mapping {
         dbip_set_import_data('mapping', $mapping);
 
         // Generate preview data
-        $preview_data = $this->generate_preview_data($mapping);
+    $preview_data = $this->generate_preview_data($mapping);
         dbip_set_import_data('preview_data', $preview_data);
 
         wp_send_json_success();
@@ -272,7 +342,8 @@ class DBIP_Importer_Mapping {
                                 return array(
                                     'valid' => false,
                                     'error' => sprintf(
-                                        __('Invalid property "%s": %s', 'database-import-pro'),
+                                        /* translators: 1: property name, 2: validation error message */
+                                        __('Invalid property "%1$s": %2$s', 'database-import-pro'),
                                         $key,
                                         $validation['error']
                                     )
@@ -284,6 +355,7 @@ class DBIP_Importer_Mapping {
                         return array(
                             'valid' => false,
                             'error' => sprintf(
+                                /* translators: %s: property name */
                                 __('Unknown property "%s"', 'database-import-pro'),
                                 $key
                             )
@@ -301,7 +373,8 @@ class DBIP_Importer_Mapping {
                             return array(
                                 'valid' => false,
                                 'error' => sprintf(
-                                    __('Invalid property "%s": %s', 'database-import-pro'),
+                                    /* translators: 1: property name, 2: validation error message */
+                                    __('Invalid property "%1$s": %2$s', 'database-import-pro'),
                                     $property,
                                     $validation['error']
                                 )
@@ -318,6 +391,7 @@ class DBIP_Importer_Mapping {
                         return array(
                             'valid' => false,
                             'error' => sprintf(
+                                /* translators: %s: required property name */
                                 __('Missing required property "%s"', 'database-import-pro'),
                                 $required
                             )
@@ -333,6 +407,7 @@ class DBIP_Importer_Mapping {
                 return array(
                     'valid' => false,
                     'error' => sprintf(
+                        /* translators: %s: comma-separated list of allowed values */
                         __('Value must be one of: %s', 'database-import-pro'),
                         implode(', ', $schema['enum'])
                     )
@@ -356,22 +431,34 @@ class DBIP_Importer_Mapping {
         $csv_data = array();
 
         if ($file_info['type'] === 'csv') {
-            $handle = fopen($file_info['path'], 'r');
-            if ($handle !== false) {
-                $headers = fgetcsv($handle);
-                $headers = array_map('trim', $headers);
+            // Use WP_Filesystem to read file contents
+            if ( ! function_exists('WP_Filesystem') ) {
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+            }
+
+            $content = false;
+            if ( WP_Filesystem() && isset($GLOBALS['wp_filesystem']) && method_exists($GLOBALS['wp_filesystem'], 'get_contents') ) {
+                $content = $GLOBALS['wp_filesystem']->get_contents( $file_info['path'] );
+            }
+
+            if ($content !== false && $content !== null) {
+                $lines = preg_split('/\r\n|\r|\n/', trim($content));
+                $headers = array_map('trim', str_getcsv(array_shift($lines)));
 
                 $row_count = 0;
-                while (($row = fgetcsv($handle)) !== false && $row_count < 10) {
+                foreach ($lines as $line) {
+                    if ($row_count >= 10) break;
+                    $row = str_getcsv($line);
+                    if ($row === false) continue;
                     $row_data = array_combine($headers, $row);
                     $mapped_row = array();
-                    
+
                     foreach ($mapping as $column => $map) {
                         // Skip auto-increment fields
                         if (!empty($map['skip'])) {
                             continue;
                         }
-                        
+
                         // Skip fields marked to keep current data
                         if (isset($map['csv_field']) && $map['csv_field'] === '__keep_current__') {
                             $mapped_row[$column] = '[CURRENT DATA]'; // Placeholder for preview
@@ -379,7 +466,7 @@ class DBIP_Importer_Mapping {
                         }
 
                         $value = '';
-                        
+
                         if (!empty($map['csv_field']) && isset($row_data[$map['csv_field']])) {
                             $value = $row_data[$map['csv_field']];
                         } elseif (!empty($map['default_value'])) {
@@ -396,11 +483,13 @@ class DBIP_Importer_Mapping {
 
                         $mapped_row[$column] = $value;
                     }
-                    
+
                     $preview_data[] = $mapped_row;
                     $row_count++;
                 }
-                fclose($handle);
+            } else {
+                // If WP_Filesystem is not available or failed, return empty preview to avoid direct filesystem operations
+                $this->log_debug('Database Import Pro: WP_Filesystem unavailable, skipping CSV preview generation for ' . $file_info['path']);
             }
         } else if ($file_info['type'] === 'xlsx' || $file_info['type'] === 'xls') {
             // Handle Excel files using PhpSpreadsheet
@@ -450,14 +539,14 @@ class DBIP_Importer_Mapping {
                         
                         $preview_data[] = $mapped_row;
                     }
-                } catch (Exception $e) {
-                    error_log('Database Import Pro Importer Excel Preview Error: ' . $e->getMessage());
+                    } catch (Exception $e) {
+                    $this->log_debug('Database Import Pro Importer Excel Preview Error: ' . $e->getMessage());
                 }
             }
         }
 
         // Store total records count in transient
-        dbip_set_import_data('total_records', $this->get_total_records($file_info['path'], $file_info['type']));
+    dbip_set_import_data('total_records', $this->get_total_records($file_info['path'], $file_info['type']));
 
         return $preview_data;
     }
@@ -478,7 +567,7 @@ class DBIP_Importer_Mapping {
             case 'custom':
                 // SECURITY FIX: Removed eval() - custom transformations disabled for security
                 // Custom PHP code execution has been removed due to security concerns
-                error_log('Database Import Pro: Custom transformations are disabled for security reasons');
+                $this->log_debug('Database Import Pro: Custom transformations are disabled for security reasons');
                 return $value;
             default:
                 // Auto-transform dates if the value looks like a date with backslashes
@@ -496,15 +585,21 @@ class DBIP_Importer_Mapping {
         $count = 0;
         
         if ($type === 'csv') {
-            $handle = fopen($file_path, 'r');
-            if ($handle !== false) {
-                // Skip header row
-                fgetcsv($handle);
-                // Count remaining rows
-                while (fgetcsv($handle) !== false) {
-                    $count++;
+            if ( ! function_exists('WP_Filesystem') ) {
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+            }
+
+            if ( WP_Filesystem() && isset($GLOBALS['wp_filesystem']) && method_exists($GLOBALS['wp_filesystem'], 'get_contents') ) {
+                $content = $GLOBALS['wp_filesystem']->get_contents( $file_path );
+                if ($content !== false && $content !== null) {
+                    $lines = preg_split('/\r\n|\r|\n/', trim($content));
+                    // Subtract header line if present
+                    if (count($lines) > 0) {
+                        $count = max(0, count($lines) - 1);
+                    }
                 }
-                fclose($handle);
+            } else {
+                $this->log_debug('Database Import Pro: WP_Filesystem unavailable, cannot count CSV records for ' . $file_path);
             }
         } else if (($type === 'xlsx' || $type === 'xls') && class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
             try {
@@ -512,8 +607,8 @@ class DBIP_Importer_Mapping {
                 $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
                 $worksheet = $spreadsheet->getActiveSheet();
                 $count = $worksheet->getHighestRow() - 1; // Subtract header row
-            } catch (Exception $e) {
-                error_log('Database Import Pro Importer Excel Count Error: ' . $e->getMessage());
+                } catch (Exception $e) {
+                $this->log_debug('Database Import Pro Importer Excel Count Error: ' . $e->getMessage());
             }
         }
         
@@ -540,8 +635,9 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Missing required data', 'database-import-pro'));
         }
 
-        global $wpdb;
-        $columns = $wpdb->get_results("SHOW COLUMNS FROM `{$table}`");
+    global $wpdb;
+    $table_esc = esc_sql($table);
+    $columns = $wpdb->get_results("SHOW COLUMNS FROM `" . $table_esc . "`"); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name is an identifier and cannot use placeholders; escaped with esc_sql(); schema queries need current data, cannot be cached
         
         $validation_results = array(
             'errors' => array(),
@@ -556,6 +652,7 @@ class DBIP_Importer_Mapping {
             // Check required fields
             if ($is_required && empty($field_map['csv_field']) && empty($field_map['default_value'])) {
                 $validation_results['errors'][] = sprintf(
+                    /* translators: %s: database field name */
                     __('Required field "%s" is not mapped', 'database-import-pro'),
                     $field_name
                 );
@@ -568,7 +665,8 @@ class DBIP_Importer_Mapping {
                     $value = $row[$field_name] ?? '';
                     if (!empty($value) && !$this->validate_field_type($value, $column->Type)) {
                         $validation_results['errors'][] = sprintf(
-                            __('Invalid data type for field "%s" in row %d', 'database-import-pro'),
+                            /* translators: 1: database field name, 2: row number */
+                            __('Invalid data type for field "%1$s" in row %2$d', 'database-import-pro'),
                             $field_name,
                             $index + 1
                         );
@@ -755,10 +853,10 @@ class DBIP_Importer_Mapping {
         global $wpdb;
         
         $errors = array();
-        $table_escaped = esc_sql($table);
-        
-        // Get table column information
-        $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `{$table_escaped}`");
+    $table_escaped = esc_sql($table);
+
+    // Get table column information
+    $columns = $wpdb->get_results("SHOW FULL COLUMNS FROM `" . $table_escaped . "`"); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- table name is an identifier and cannot use placeholders; escaped with esc_sql(); schema queries need current data, cannot be cached
         
         if (empty($columns)) {
             return array('valid' => true, 'errors' => array());
@@ -793,7 +891,8 @@ class DBIP_Importer_Mapping {
             // Validate the default value against the column type
             if (!$this->validate_default_value_type($default_value, $column->Type, $field_name)) {
                 $errors[] = sprintf(
-                    __('Invalid default value "%s" for field "%s" (type: %s)', 'database-import-pro'),
+                    /* translators: 1: default value, 2: field name, 3: database column type */
+                    __('Invalid default value "%1$s" for field "%2$s" (type: %3$s)', 'database-import-pro'),
                     esc_html($default_value),
                     esc_html($field_name),
                     esc_html($column->Type)
@@ -842,7 +941,7 @@ class DBIP_Importer_Mapping {
                 case 'bigint':
                     // Check if it's a valid integer
                     if (!is_numeric($value) || strpos($value, '.') !== false) {
-                        error_log("Database Import Pro: Invalid integer default value '$value' for field '$field_name'");
+                    $this->log_debug("Database Import Pro: Invalid integer default value '$value' for field '$field_name'");
                         return false;
                     }
                     
@@ -855,7 +954,7 @@ class DBIP_Importer_Mapping {
                 case 'double':
                 case 'real':
                     if (!is_numeric($value)) {
-                        error_log("Database Import Pro: Invalid numeric default value '$value' for field '$field_name'");
+                        $this->log_debug("Database Import Pro: Invalid numeric default value '$value' for field '$field_name'");
                         return false;
                     }
                     return true;
@@ -865,7 +964,7 @@ class DBIP_Importer_Mapping {
                     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
                         $timestamp = strtotime($value);
                         if ($timestamp === false) {
-                            error_log("Database Import Pro: Invalid date default value '$value' for field '$field_name'");
+                            $this->log_debug("Database Import Pro: Invalid date default value '$value' for field '$field_name'");
                             return false;
                         }
                     }
@@ -876,7 +975,7 @@ class DBIP_Importer_Mapping {
                     // Validate datetime format
                     $timestamp = strtotime($value);
                     if ($timestamp === false && !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value)) {
-                        error_log("Database Import Pro: Invalid datetime default value '$value' for field '$field_name'");
+                        $this->log_debug("Database Import Pro: Invalid datetime default value '$value' for field '$field_name'");
                         return false;
                     }
                     return true;
@@ -884,7 +983,7 @@ class DBIP_Importer_Mapping {
                 case 'time':
                     // Validate time format (HH:MM:SS or HH:MM)
                     if (!preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $value)) {
-                        error_log("Database Import Pro: Invalid time default value '$value' for field '$field_name'");
+                        $this->log_debug("Database Import Pro: Invalid time default value '$value' for field '$field_name'");
                         return false;
                     }
                     return true;
@@ -892,7 +991,7 @@ class DBIP_Importer_Mapping {
                 case 'year':
                     // Validate year (must be 4 digits)
                     if (!is_numeric($value) || strlen($value) !== 4) {
-                        error_log("Database Import Pro: Invalid year default value '$value' for field '$field_name'");
+                        $this->log_debug("Database Import Pro: Invalid year default value '$value' for field '$field_name'");
                         return false;
                     }
                     return true;
@@ -903,7 +1002,7 @@ class DBIP_Importer_Mapping {
                     if ($constraint && is_numeric($constraint)) {
                         $max_length = (int)$constraint;
                         if (strlen($value) > $max_length) {
-                            error_log("Database Import Pro: Default value '$value' exceeds maximum length $max_length for field '$field_name'");
+                            $this->log_debug("Database Import Pro: Default value '$value' exceeds maximum length $max_length for field '$field_name'");
                             return false;
                         }
                     }
@@ -924,7 +1023,7 @@ class DBIP_Importer_Mapping {
                         }, explode(',', $constraint));
                         
                         if (!in_array($value, $enum_values)) {
-                            error_log("Database Import Pro: Default value '$value' not in ENUM values for field '$field_name'");
+                            $this->log_debug("Database Import Pro: Default value '$value' not in ENUM values for field '$field_name'");
                             return false;
                         }
                     }
@@ -940,7 +1039,7 @@ class DBIP_Importer_Mapping {
                         $input_values = explode(',', $value);
                         foreach ($input_values as $input_val) {
                             if (!in_array(trim($input_val), $set_values)) {
-                                error_log("Database Import Pro: Default value '$input_val' not in SET values for field '$field_name'");
+                                $this->log_debug("Database Import Pro: Default value '$input_val' not in SET values for field '$field_name'");
                                 return false;
                             }
                         }
@@ -951,7 +1050,7 @@ class DBIP_Importer_Mapping {
                     // Validate JSON
                     json_decode($value);
                     if (json_last_error() !== JSON_ERROR_NONE) {
-                        error_log("Database Import Pro: Invalid JSON default value for field '$field_name'");
+                        $this->log_debug("Database Import Pro: Invalid JSON default value for field '$field_name'");
                         return false;
                     }
                     return true;
@@ -967,13 +1066,13 @@ class DBIP_Importer_Mapping {
                     
                 default:
                     // Unknown type - log warning but allow
-                    error_log("Database Import Pro: Unknown column type '$type' for field '$field_name', skipping validation");
+                    $this->log_debug("Database Import Pro: Unknown column type '$type' for field '$field_name', skipping validation");
                     return true;
             }
         }
         
         // If we can't parse the type, log and allow
-        error_log("Database Import Pro: Could not parse column type '$db_type' for field '$field_name'");
+        $this->log_debug("Database Import Pro: Could not parse column type '$db_type' for field '$field_name'");
         return true;
     }
 
@@ -989,10 +1088,19 @@ class DBIP_Importer_Mapping {
             wp_send_json_error(__('Unauthorized access', 'database-import-pro'));
         }
 
-        parse_str($_POST['data'], $form_data);
-        
-        dbip_set_import_data('import_mode', sanitize_text_field($form_data['import_mode']));
-        dbip_set_import_data('key_columns', isset($form_data['key_columns']) ? array_map('sanitize_text_field', $form_data['key_columns']) : []);
+        $form_data = array();
+        if (isset($_POST['data'])) {
+            $raw = wp_unslash($_POST['data']); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized immediately below
+            parse_str($raw, $form_data);
+            if (!is_array($form_data)) {
+                $form_data = array();
+            } else {
+                $form_data = $this->sanitize_recursive($form_data);
+            }
+        }
+
+        dbip_set_import_data('import_mode', sanitize_text_field($form_data['import_mode'] ?? ''));
+        dbip_set_import_data('key_columns', isset($form_data['key_columns']) && is_array($form_data['key_columns']) ? array_map('sanitize_text_field', $form_data['key_columns']) : []);
         dbip_set_import_data('allow_null', !empty($form_data['allow_null']));
         dbip_set_import_data('dry_run', !empty($form_data['dry_run']));
 

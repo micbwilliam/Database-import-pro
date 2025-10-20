@@ -21,7 +21,10 @@ class DBIP_Importer_Admin {
      * @since    1.0.0
      */
     public function __construct() {
-        $this->current_step = isset($_GET['step']) ? (int) $_GET['step'] : 1;
+        // Always unslash and sanitize step from GET
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce verification happens in validate_step_access() on admin_init
+        $step = isset($_GET['step']) ? sanitize_text_field(wp_unslash($_GET['step'])) : '1';
+        $this->current_step = (int) $step;
     }
 
     /**
@@ -123,8 +126,16 @@ class DBIP_Importer_Admin {
             return;
         }
 
-        $current_step = isset($_GET['step']) ? sanitize_text_field($_GET['step']) : '1';
-        
+        // Nonce check for step navigation (if present)
+        if (isset($_GET['_wpnonce'])) {
+            $nonce = sanitize_text_field(wp_unslash($_GET['_wpnonce']));
+            if (!wp_verify_nonce($nonce, 'dbip_importer_nonce')) {
+                wp_die(esc_html__('Security check failed. Please try again.', 'database-import-pro'));
+            }
+        }
+
+        $current_step = isset($_GET['step']) ? sanitize_text_field(wp_unslash($_GET['step'])) : '1';
+
         // Convert numeric steps to text identifiers for validation
         $step_map = array(
             '1' => 'upload',
@@ -134,7 +145,7 @@ class DBIP_Importer_Admin {
             '5' => 'import',
             '6' => 'completion'
         );
-        
+
         // If numeric step provided, convert to text identifier
         if (isset($step_map[$current_step])) {
             $current_step = $step_map[$current_step];

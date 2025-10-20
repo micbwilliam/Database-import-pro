@@ -35,5 +35,5 @@ require_once __DIR__ . '/mocks/wordpress-functions.php';
 // Echo test environment info
 echo "\n================================\n";
 echo "Database Import Pro Test Suite\n";
-echo "Version: " . DBIP_IMPORTER_VERSION . "\n";
+echo "Version: " . esc_html(DBIP_IMPORTER_VERSION) . "\n";
 echo "================================\n\n";

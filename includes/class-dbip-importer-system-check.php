@@ -181,6 +181,7 @@ class DBIP_Importer_System_Check {
             return array(
                 'type' => 'success',
                 'message' => sprintf(
+                    /* translators: %s: supported file extensions */
                     __('Excel support is <strong>enabled</strong>. You can import %s files.', 'database-import-pro'),
                     self::get_supported_extensions_string()
                 )
@@ -200,6 +201,7 @@ class DBIP_Importer_System_Check {
             return array(
                 'type' => 'warning',
                 'message' => sprintf(
+                    /* translators: %s: missing PHP extensions */
                     __('Excel support is <strong>unavailable</strong>. Missing required PHP extensions: %s. Only CSV files are currently supported. Contact your hosting provider to enable these extensions.', 'database-import-pro'),
                     implode(', ', $missing)
                 )
@@ -209,6 +211,7 @@ class DBIP_Importer_System_Check {
         return array(
             'type' => 'info',
             'message' => sprintf(
+                /* translators: %s: URL to documentation */
                 __('Excel support is <strong>not installed</strong>. Only CSV files are currently supported. To enable Excel (.xlsx, .xls) support, run <code>composer install</code> in the plugin directory. <a href="%s" target="_blank">Learn more</a>', 'database-import-pro'),
                 'https://github.com/michaelbwilliam/database-import-pro#excel-support'
             )
