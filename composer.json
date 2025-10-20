@@ -1,5 +1,5 @@
 {
-    "version": "2.1.2",
+    "version": "2.1.4",
     "name": "michaelbwilliam/database-import-pro",
     "description": "Enterprise-grade CSV and Excel to database importer for WordPress",
     "type": "wordpress-plugin",
