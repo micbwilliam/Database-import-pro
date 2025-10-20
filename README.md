@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/badge/license-GPL--2.0%2B-blue.svg)
 ![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-blue.svg)
 ![PHP](https://img.shields.io/badge/php-7.4%2B-blue.svg)
-![Version](https://img.shields.io/badge/version-2.0.3-green.svg)
+![Version](https://img.shields.io/badge/version-2.1.5-green.svg)
 ![Security Grade](https://img.shields.io/badge/security-A-brightgreen.svg)
 ![Code Quality](https://img.shields.io/badge/code_quality-A-brightgreen.svg)
 ![Performance](https://img.shields.io/badge/performance-A-brightgreen.svg)
@@ -12,7 +12,7 @@
 
 A professional, enterprise-grade WordPress plugin that provides an advanced, secure, and user-friendly interface for importing CSV and Excel data into any WordPress database table with bulletproof workflow validation, comprehensive error handling, and 100% data persistence.
 
-**Version:** 2.0.3  
+**Version:** 2.1.5  
 **Author:** Michael B. William  
 **Author URI:** [michaelbwilliam.com](https://michaelbwilliam.com)  
 **License:** GPL-2.0+  
